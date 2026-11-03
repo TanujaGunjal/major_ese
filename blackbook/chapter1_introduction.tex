@@ -2,217 +2,83 @@
 
 \section{Background and Motivation}
 
-Healthcare fraud represents one of the most persistent, financially devastating, and systemically harmful categories of white-collar crime worldwide. In the United States alone, the Federal Bureau of Investigation (FBI) and the Centers for Medicare and Medicaid Services (CMS) estimate that healthcare fraud accounts for approximately three to ten percent of total healthcare expenditure each year, translating to losses in excess of \$300 billion annually. The Medicare and Medicaid programmes, which collectively serve more than 130 million beneficiaries across all fifty states, are particularly susceptible to fraudulent billing practices given the enormous volume of claims processed — CMS adjudicates over one billion claims per year — and the structural difficulty of verifying each claim's medical necessity before reimbursement is issued. Common fraudulent schemes include billing for services never rendered, upcoding procedures to higher reimbursement tiers, unbundling bundled services into multiple separate claims, excessive ordering of medically unnecessary diagnostic tests, and the submission of duplicate claims for a single encounter.
-
-The economic consequences of unchecked healthcare fraud extend far beyond direct financial losses. Fraudulent expenditure diverts resources away from legitimate patient care, inflates insurance premiums for employers and individuals, erodes public trust in healthcare institutions, and creates systemic distortions in provider incentive structures. From a public health perspective, fraud involving phantom diagnoses or unnecessary procedures can cause direct clinical harm to patients who undergo unindicated interventions. In lower-income and under-resourced settings, fraud within public health data collection programmes — such as national health surveys — can compromise the integrity of population-level epidemiological data that policymakers rely upon to allocate budgets and design intervention strategies.
-
-The rapid growth of electronic health records (EHRs), administrative claims databases, and nationally representative health surveys has created an unprecedented opportunity to apply computational intelligence to the fraud detection problem. Machine learning (ML) and artificial intelligence (AI) techniques are now capable of processing millions of claims records at speeds and scales that are simply unachievable through manual review. Supervised learning algorithms trained on historically labelled fraudulent and non-fraudulent cases can identify subtle, multi-dimensional patterns of anomalous billing behaviour that elude human auditors examining individual records in isolation. Furthermore, advances in explainability research — collectively grouped under the umbrella of Explainable AI (XAI) — now make it possible to present model predictions together with human-interpretable rationales, addressing a long-standing barrier to clinical and regulatory adoption of black-box models.
-
-In the Indian context, the integrity of large-scale health survey data is equally critical. The National Family Health Survey-5 (NFHS-5), conducted by the International Institute for Population Sciences (IIPS) on behalf of the Ministry of Health and Family Welfare between 2019 and 2021, collected detailed health, nutrition, and demographic data from approximately 724,115 female respondents across all states and union territories of India. This survey serves as the authoritative data source for national health policy decisions relating to non-communicable diseases (NCDs) such as diabetes and hypertension — two of the fastest-growing disease burdens in South Asia. Logical and clinical inconsistencies embedded in self-reported survey data can arise from a variety of causes including respondent recall bias, enumerator error, translation artefacts, and, in some contexts, deliberate misreporting. Automated clinical validation of such data is therefore essential for preserving the epidemiological reliability of the survey's findings.
-
-The convergence of these challenges — large-scale Medicare claims fraud in a US administrative context and clinical data inconsistencies in an Indian public health survey context — motivates the design of a unified, AI-augmented decision-support system that addresses both problems through complementary technical approaches: supervised machine learning with explainability for provider-level fraud detection, and deterministic rule-based clinical logic for survey data validation.
+Healthcare fraud costs the US Medicare and Medicaid programmes over \$300 billion annually. The rapid growth of electronic claims databases and advances in machine learning (ML) and Explainable AI (XAI) now enable automated, interpretable detection of fraud patterns at scale. In the Indian context, the NFHS-5 survey (724,115 female respondents, 2019--2021) provides critical population health data for national policy; logical inconsistencies in self-reported responses must be identified to preserve its epidemiological reliability. This project addresses both challenges within a unified, investigator-facing decision-support system.
 
 \section{Problem Statement}
 
-Despite significant investment by governmental agencies, insurance companies, and healthcare organisations in fraud detection infrastructure, the problem of healthcare fraud detection remains technically unsolved at the scale and accuracy required for operational deployment. The specific technical problems addressed by this project are as follows.
-
-\textbf{Provider-Level Fraud Detection:} The CMS SynPUF (Synthetic Public Use Files) Medicare dataset contains billing records for 5,410 unique healthcare providers across inpatient and outpatient claim types. Of these, 506 providers (9.35\%) are labelled as exhibiting potential fraud by the ground-truth label file, while the remaining 4,904 (90.65\%) are labelled non-fraudulent. The primary challenge is to train a supervised binary classifier that can correctly identify fraudulent providers using engineered aggregate features derived from raw claim-level data, while simultaneously managing a severe class imbalance (approximately 1:9.7 fraud-to-legitimate ratio) and remaining interpretable enough for use by fraud investigators who must justify every flag they pursue for audit or prosecution.
-
-\textbf{Claim-Level Screening:} Beyond provider-level risk scoring, individual claims must be screened for specific, objectively defined indicators of suspicious billing behaviour — such as anomalous reimbursement amounts, duplicate billing for the same beneficiary-provider-date triplet, temporal inconsistencies in claim dates, and unusually high complexity or frequency patterns. These screening indicators must be transparent and directly traceable to claim-level data fields, so that investigators can immediately understand why a claim was flagged without relying on an opaque model.
-
-\textbf{NFHS-5 Clinical Consistency Validation:} The 724,115 records in the NFHS-5 dataset contain self-reported responses relating to diabetes and hypertension diagnosis, treatment-seeking behaviour, medication adherence, and measured blood glucose levels. Certain combinations of responses are clinically implausible — for example, a respondent who reports currently receiving treatment for diabetes but denies having been diagnosed with diabetes, or who reports a random blood glucose reading of 200~mg/dL or higher without any diabetes diagnosis. Identifying and quantifying such inconsistencies at scale requires a formal rule-based clinical validation framework with weighted risk scoring and categorical risk tiers.
-
-\textbf{Operational Deployment:} Existing academic fraud detection systems are typically published as static notebooks or batch-processing scripts without any interactive interface for end-users. Fraud investigators require a real-time, query-driven dashboard that allows them to search individual claims, profile specific providers, review longitudinal beneficiary histories, and track the status of open investigation cases — all within a single integrated application backed by a high-performance query engine capable of sub-second response times over half a million records.
+\begin{itemize}
+    \item \textbf{Provider-Level Fraud:} Among 5,410 CMS SynPUF Medicare providers, 506 (9.35\%) are labelled fraudulent; severe class imbalance (1:9.7) and interpretability requirements challenge standard classifiers.
+    \item \textbf{Claim-Level Screening:} Individual claims must be assessed for transparent, field-traceable indicators — anomalous reimbursements, duplicate billing, temporal inconsistencies, and high-frequency patterns.
+    \item \textbf{NFHS-5 Clinical Consistency:} Among 724,115 NFHS-5 respondents, clinically implausible combinations (e.g., blood glucose $\geq$200~mg/dL without a diabetes diagnosis) must be identified and risk-stratified at scale.
+    \item \textbf{Operational Deployment:} Investigators need integrated claim search, provider profiling, beneficiary history, and case management in a single application with sub-10~ms query latency.
+\end{itemize}
 
 \section{Existing Systems and Their Limitations}
 
-A review of the existing landscape of healthcare fraud detection systems reveals several structural and technical limitations that motivate the design of the proposed system.
-
-\subsection{Rule-Based Expert Systems}
-
-Early fraud detection systems deployed by CMS and private insurers were predominantly rule-based expert systems, encoding domain knowledge from experienced auditors as explicit logical conditions. While these systems achieve high precision for the specific fraud patterns they encode, they suffer from a fundamental rigidity: rules must be manually authored and updated by domain experts, making them slow to adapt to evolving fraud tactics. Furthermore, because rule-based systems evaluate each claim in isolation, they are unable to detect distributed fraud patterns that emerge only in aggregate — for example, a provider who submits individually plausible claims but whose overall billing portfolio deviates statistically from peer norms.
-
-\subsection{Statistical Anomaly Detection}
-
-Some fraud detection approaches model the statistical distribution of billing behaviour across a population of providers and flag outliers as anomalous. While unsupervised anomaly detection methods such as Isolation Forests and autoencoders do not require labelled training data, they also lack any mechanism to distinguish legitimate outliers (such as specialist providers whose billing patterns differ structurally from general practitioners) from genuinely fraudulent ones. High false-positive rates are a well-documented problem in anomaly-detection-based fraud systems, as they impose excessive investigation workload on human auditors.
-
-\subsection{Supervised Machine Learning Without Explainability}
-
-A number of published studies have applied supervised classification algorithms — including gradient boosting, random forests, and deep neural networks — to Medicare fraud detection. While these methods can achieve high area-under-the-curve (AUC) values on held-out test sets, they are typically presented as black-box predictors without any mechanism to explain individual predictions to end-users. Fraud investigators and legal counsel require not merely a fraud probability score, but a coherent, evidence-backed rationale that can be documented, contested, and presented in legal proceedings. Systems that cannot provide such explanations are not operationally deployable in high-stakes investigative contexts.
-
-\subsection{Absence of Claim-Level Screening and Provider-Level ML Integration}
-
-The majority of existing systems operate exclusively at either the claim level or the provider level, but not both simultaneously. A claim-level system can identify individually suspicious transactions but cannot accumulate evidence into a provider-level risk profile. A provider-level system can score aggregate billing behaviour but cannot pinpoint the specific individual claims that drive a high fraud risk score. An integrated dual-level system — capable of both claim-level rule-based screening and provider-level ML scoring, with navigational links between the two — does not exist in any publicly available operational tool.
-
-\subsection{Lack of Ground-Truth Labels for Individual Claims}
-
-The CMS SynPUF Medicare dataset provides fraud labels only at the provider level, not the individual claim level. This is representative of real-world fraud detection constraints: in practice, it is not possible to definitively label individual claims as fraudulent or legitimate without extensive manual investigation. This limitation means that supervised learning must be performed at the provider level using aggregated features, and claim-level indicators must be derived through transparent rule-based heuristics rather than supervised models.
-
-\subsection{No Integration with Clinical Data Validation}
-
-Existing Medicare fraud detection systems operate entirely within the administrative claims domain and do not incorporate any cross-validation against clinical population health data. In the Indian context, no publicly available tool exists for automated clinical consistency checking of NFHS survey data at scale. The integration of these two distinct validation tasks within a single investigative platform represents an entirely novel contribution.
+\begin{itemize}
+    \item \textbf{Rule-Based Expert Systems:} Cannot adapt to evolving fraud tactics or detect aggregate anomalies distributed across multiple claims.
+    \item \textbf{Statistical Anomaly Detection:} High false-positive rates; cannot distinguish legitimate outliers from genuine fraud.
+    \item \textbf{Supervised ML Without Explainability:} High AUC but opaque scores; investigators cannot justify flags for audit or legal proceedings.
+    \item \textbf{Single-Granularity and No Clinical Integration:} Existing tools operate at one level only and none integrates Medicare fraud detection with clinical survey validation.
+\end{itemize}
 
 \section{Need for the Proposed System}
 
-The limitations enumerated above collectively define a clear and practically significant gap in the existing landscape of healthcare fraud detection and clinical data validation tools. The proposed system addresses this gap by satisfying the following specific operational needs.
-
-\textbf{Scalable, Real-Time Query Performance:} With 558,211 claims across inpatient and outpatient records and 724,115 NFHS records, the system requires a high-performance analytical query engine capable of returning results in under ten milliseconds for typical investigative queries. This requirement excludes in-memory pandas-based solutions and motivates the adoption of DuckDB as the embedded analytical database backend.
-
-\textbf{Interpretable Provider Risk Scores:} Investigators must be able to understand not merely that a provider is flagged as high-risk, but specifically which billing features drove the high risk score. SHAP (SHapley Additive exPlanations) values computed from the trained Random Forest model provide this feature-level interpretability in a mathematically well-grounded framework.
-
-\textbf{Transparent Rule-Based Claim Screening:} Each of the five claim-level screening rules must be directly traceable to named data fields and explicit threshold conditions, with no probabilistic ambiguity. This transparency is essential for investigators to decide whether a flagged claim warrants further investigation.
-
-\textbf{Clinical Validation of Population Health Survey Data:} The NFHS-5 clinical inconsistency detection module addresses a need that is entirely distinct from Medicare fraud detection but equally important for public health policymaking: ensuring that computations and epidemiological conclusions derived from the NFHS-5 dataset are not contaminated by logically inconsistent records.
-
-\textbf{Integrated Investigation Case Management:} Fraud investigators require a persistent, auditable case management system that allows them to open cases, assign priorities, record notes, update investigation status, and retrieve the full audit trail for completed investigations. The proposed system provides this capability through an SQLite-backed Investigation Workspace with full CRUD (Create, Read, Update, Delete) operations.
+\begin{itemize}
+    \item \textbf{High-Performance Query Engine:} 558,211 claims and 724,115 NFHS-5 records demand sub-10~ms analytical query latency; DuckDB's embedded columnar engine satisfies this without a server process.
+    \item \textbf{Interpretable Risk Scores:} SHAP TreeExplainer values provide per-provider feature-level explanations, enabling investigators to document evidence and adjust thresholds dynamically.
+    \item \textbf{Persistent Case Management:} An SQLite-backed Investigation Workspace provides case creation, status tracking, note annotation, and audit-trail retrieval within the same interface.
+\end{itemize}
 
 \section{Project Objectives}
 
-The objectives of this project are enumerated below, ordered from foundational data engineering tasks through model development to interface design and validation.
-
 \begin{enumerate}
-    \item To design and implement a complete data engineering pipeline that ingests raw CMS SynPUF Medicare inpatient, outpatient, and beneficiary CSV files, engineers ten provider-level aggregate features, and constructs a compressed, indexed DuckDB analytical database of 85~MB capable of serving sub-10~ms investigative queries.
-
-    \item To develop and evaluate three supervised binary classification models — Random Forest, Logistic Regression, and XGBoost — for provider-level fraud detection on the CMS SynPUF dataset, employing stratified five-fold cross-validation, appropriate class imbalance handling techniques, and a comprehensive suite of evaluation metrics including accuracy, precision, recall, F1 score, ROC-AUC, and average precision.
-
-    \item To implement a SHAP-based explainability module that generates per-provider SHAP waterfall plots and feature contribution rankings using the trained Random Forest model, enabling investigators to understand the specific billing features that drive each provider's fraud risk score.
-
-    \item To design a formal clinical inconsistency rule set comprising six weighted rules (R1A, R1B, R2A, R2B, R3, R4) for validating the clinical plausibility of diabetes and hypertension-related responses in the NFHS-5 dataset, and to implement a processing pipeline that applies these rules to all 724,115 records and assigns each record to one of five risk categories: Clean, Low, Medium, High, or Critical.
-
-    \item To implement five transparent claim-level screening rules — covering reimbursement outliers, duplicate billing, duration anomalies, complex procedure codes, and high-frequency beneficiaries — and to integrate these rules into an interactive Claim Investigation page that presents screening results alongside raw claim data.
-
-    \item To build a nine-page, multi-module Streamlit dashboard that integrates all analytical components — overview KPI tracking, claim search, beneficiary history, provider risk profiling, ML model performance review, NFHS-5 validation, investigation case management, and data quality exploration — into a single, navigable, production-ready application.
-
-    \item To implement a configurable dual-threshold fraud risk classification scheme (default thresholds: 0.30 for medium risk and 0.70 for high risk) and to provide an interactive slider control allowing investigators to adjust these thresholds in real time and immediately observe the impact on provider risk tier distributions.
-
-    \item To validate system performance through a comprehensive pytest test suite covering data loading, feature engineering, model prediction, claim screening, and investigation workspace operations, ensuring that all core modules meet their functional specifications before deployment.
+    \item Design and implement a data engineering pipeline ingesting raw CMS SynPUF CSV files and constructing an 85~MB DuckDB analytical database with sub-10~ms query latency.
+    \item Develop and evaluate Random Forest, Logistic Regression, and XGBoost classifiers under stratified five-fold cross-validation with six evaluation metrics.
+    \item Implement a SHAP TreeExplainer module for per-provider waterfall plots and global feature-importance rankings.
+    \item Design six weighted clinical inconsistency rules for NFHS-5 validation and apply them to all 724,115 records with five-tier risk categorisation.
+    \item Implement five transparent claim-level screening rules covering reimbursement outliers, duplicate billing, duration anomalies, complex procedures, and high-frequency beneficiaries.
+    \item Build a nine-page Streamlit dashboard integrating all analytical components into a single browser-accessible application.
+    \item Implement a configurable dual-threshold risk classification scheme (default: 0.30 Medium, 0.70 High) with real-time slider controls.
+    \item Validate all core modules via a pytest test suite covering data loading, feature engineering, model prediction, claim screening, and investigation workspace operations.
 \end{enumerate}
 
 \section{Project Scope}
 
-\subsection{Scope of the System}
-
-The scope of the proposed system encompasses the following components and capabilities.
-
 \begin{itemize}
-    \item \textbf{Datasets:} The CMS SynPUF Medicare Claims dataset (inpatient, outpatient, and beneficiary files plus provider fraud labels) and the NFHS-5 survey dataset for female respondents. Together these datasets span 558,211 Medicare claims, 5,410 providers, and 724,115 NFHS-5 records.
-
-    \item \textbf{Fraud Detection:} Supervised binary classification of Medicare providers as potentially fraudulent or legitimate, using ten engineered aggregate features derived from raw claim-level data.
-
-    \item \textbf{Claim Screening:} Rule-based screening of individual Medicare claims using five transparent indicator rules, each directly interpretable in terms of named data fields and explicit thresholds.
-
-    \item \textbf{Clinical Validation:} Rule-based clinical inconsistency detection on NFHS-5 records, applying six weighted rules and producing a five-tier risk categorisation.
-
-    \item \textbf{Explainability:} SHAP-based feature importance and per-prediction waterfall charts for provider-level model outputs.
-
-    \item \textbf{Investigation Management:} SQLite-backed case queue supporting case creation, status updates, note-taking, and audit trail retrieval.
-
-    \item \textbf{Interactive Dashboard:} A nine-page Streamlit application providing real-time query, visualisation, and analysis capabilities accessible through a standard web browser.
-
-    \item \textbf{Performance:} Sub-10~ms query response times for typical investigative queries via DuckDB; model inference latency suitable for real-time use.
-
-    \item \textbf{Testing:} Automated regression testing via a pytest suite covering all major system modules.
-\end{itemize}
-
-\subsection{Deliberate Exclusions}
-
-The following are explicitly outside the scope of this project.
-
-\begin{itemize}
-    \item \textbf{Real Patient Data:} The system is developed and evaluated exclusively on synthetic (SynPUF) Medicare data and publicly released NFHS-5 survey data. It does not process, store, or transmit identifiable patient health information, and no HIPAA-regulated data is used at any stage.
-
-    \item \textbf{Real-Time Claims Adjudication Integration:} The system operates as an offline decision-support tool and does not interface with live claims adjudication systems, payment gateways, or health insurance core systems.
-
-    \item \textbf{Individual Claim-Level Supervised Classification:} Due to the absence of claim-level fraud labels in the CMS SynPUF dataset, supervised ML is applied only at the provider level. Individual claim analysis is limited to rule-based screening.
-
-    \item \textbf{Natural Language Processing of Clinical Notes:} The system does not process unstructured clinical text, physician notes, or radiology reports. All inputs are structured tabular data.
-
-    \item \textbf{Deployment to Cloud or Production Infrastructure:} The system is designed for local deployment in a research and demonstration context. Cloud deployment, authentication, authorisation, and multi-user access control are outside the project scope.
-
-    \item \textbf{Inpatient versus Outpatient Coding Specificity:} The system does not validate ICD-10 diagnosis codes or CPT procedure codes against clinical guidelines. Procedure code analysis is limited to counting the number of codes per claim.
+    \item \textbf{Datasets:} CMS SynPUF Medicare (558,211 claims, 5,410 providers) and NFHS-5 (724,115 records); supervised provider-level fraud detection and rule-based claim and clinical validation.
+    \item \textbf{Platform:} Fully local Streamlit application backed by DuckDB and SQLite; no cloud deployment, live claims adjudication, or NLP on unstructured text.
+    \item \textbf{Data:} Exclusively synthetic SynPUF and publicly released NFHS-5 data; no identifiable patient information is processed.
 \end{itemize}
 
 \section{Proposed Solution Overview}
 
-The proposed system, titled \textit{AI-Based Healthcare Claims Fraud Detection with Medical Validation and Explainable AI}, is a Streamlit-based multi-page interactive decision-support dashboard designed for healthcare claims fraud investigation. The system integrates two complementary analytical components within a unified, interactive frontend.
-
-\subsection{Component 1: NFHS-5 Medical Validation}
-
-The first component applies a deterministic rule-based clinical inconsistency detection framework to India's National Family Health Survey-5 dataset, which contains health and demographic information for 724,115 female respondents collected between 2019 and 2021. Six clinical inconsistency rules, each encoding a medically implausible combination of survey responses, are applied to every record. Each rule carries a domain-expert-assigned weight reflecting the clinical severity of the inconsistency:
-
-\begin{itemize}
-    \item \textbf{R1A} — Diabetes diagnosis without corresponding treatment (weight = 3)
-    \item \textbf{R1B} — Hypertension diagnosis without corresponding treatment (weight = 3)
-    \item \textbf{R2A} — Diabetes treatment without a prior diabetes diagnosis (weight = 5)
-    \item \textbf{R2B} — Hypertension treatment without a prior hypertension diagnosis (weight = 5)
-    \item \textbf{R3}  — Random blood glucose $\geq$ 200~mg/dL without a diabetes diagnosis (weight = 4)
-    \item \textbf{R4}  — Diabetes diagnosis without prescribed medication (weight = 2)
-\end{itemize}
-
-A composite risk score is computed for each record as the sum of triggered rule weights. Records are then assigned to one of five risk categories: Clean (score = 0), Low (score $\leq$ 2), Medium (score $\leq$ 4), High (score $\leq$ 6), and Critical (score $>$ 6). The NFHS Medical Consistency page of the dashboard presents aggregate statistics, rule-wise flag rates, and record-level details for flagged entries.
-
-\subsection{Component 2: Medicare Provider-Level ML Fraud Detection}
-
-The second component applies supervised machine learning to the CMS SynPUF Medicare Claims dataset for provider-level fraud detection. Raw inpatient, outpatient, and beneficiary CSV files are ingested by the data engineering pipeline, which computes ten aggregate provider-level features:
-
-\[
-\mathbf{x} = \{\text{TotalClaims},\ \text{TotalReimbursement},\ \text{AverageReimbursement},\ \text{UniquePatients},\ \text{InpatientClaims},\ \text{InpatientReimbursement},\ \text{InpatientAvgReimbursement},\ \text{OutpatientClaims},\ \text{OutpatientReimbursement},\ \text{OutpatientAvgReimbursement}\}
-\]
-
-Three binary classifiers — Random Forest, Logistic Regression, and XGBoost — are trained on these features using a stratified 80:20 train-test split (4,328 training providers, 1,082 test providers) and evaluated via five-fold stratified cross-validation. The XGBoost model achieves the highest cross-validated F1 score (57.56\%) and ROC-AUC (93.55\%), while Random Forest achieves the highest cross-validated precision (68.93\%). Model predictions are presented through a configurable dual-threshold risk tier scheme, and SHAP TreeExplainer values are computed to provide per-provider feature contribution explanations.
-
-\subsection{Dashboard Architecture}
-
-The nine-page Streamlit dashboard exposes all analytical functionality through an intuitive browser-based interface:
-
-\begin{enumerate}
-    \item \textbf{Overview Dashboard} — System-wide KPIs, temporal trends, and interactive filters
-    \item \textbf{Claim Investigation} — Search and inspect individual claims by ClaimID from 558,211 records
-    \item \textbf{Beneficiary History} — Longitudinal claims timeline per beneficiary
-    \item \textbf{Provider Risk Analysis} — ML risk score, SHAP explanation, and peer context for a selected provider
-    \item \textbf{Suspicious Claim Screening} — Five rule-based screening indicators applied per claim
-    \item \textbf{ML Model Performance} — Holdout metrics, interactive threshold slider, confusion matrix, and SHAP summary
-    \item \textbf{NFHS Medical Consistency} — Clinical inconsistency rule results on NFHS-5 data
-    \item \textbf{Investigation Workspace} — SQLite-backed case queue with audit trail
-    \item \textbf{Data Explorer} — Schema inspection, completeness analysis, and duplicate detection
-\end{enumerate}
-
-DuckDB serves as the query engine for all claims data, providing compressed storage (85~MB indexed database) and sub-10~ms query latency. Models are persisted via joblib and loaded at application startup. SHAP explanations are computed on demand for each provider query.
+The proposed system is a Streamlit-based nine-page interactive decision-support dashboard. The first component applies six weighted clinical inconsistency rules to 724,115 NFHS-5 records, assigning each a composite risk score mapping to five tiers (Clean, Low, Medium, High, Critical). The second component engineers ten provider-level aggregate features from CMS SynPUF data and trains three classifiers — Random Forest, Logistic Regression, and XGBoost — under five-fold stratified cross-validation; XGBoost achieves the highest ROC-AUC (93.55\%) and F1 (57.56\%), while Random Forest achieves the highest precision (68.93\%). SHAP TreeExplainer provides per-provider feature attribution on demand. All data are served via a DuckDB database (85~MB, sub-10~ms latency), and investigation cases are persisted in a SQLite-backed workspace with a six-status lifecycle.
 
 \section{Key Contributions}
 
-The key original contributions of this project are as follows.
-
-\begin{enumerate}
-    \item \textbf{Dual-Domain Analytical Framework:} Integration of Medicare provider-level ML fraud detection and NFHS-5 clinical data consistency validation within a single, unified decision-support platform — a combination that has not been attempted in existing literature.
-
-    \item \textbf{Ten-Feature Provider Engineering Pipeline:} A reproducible, end-to-end feature engineering pipeline that derives ten semantically meaningful provider-level aggregate features from raw CMS SynPUF inpatient, outpatient, and beneficiary CSV files, enabling supervised ML in the absence of claim-level ground-truth labels.
-
-    \item \textbf{Weighted Clinical Rule System for NFHS-5:} A formal six-rule weighted clinical inconsistency detection framework, applied at scale to 724,115 NFHS-5 records, producing a five-tier risk stratification that identifies 20,514 records (2.83\%) with clinically implausible response combinations.
-
-    \item \textbf{SHAP-Augmented Provider Risk Profiling:} Integration of SHAP TreeExplainer-based feature attribution into a live, query-driven investigative workflow, enabling investigators to obtain a feature-level explanation for any provider's fraud risk score on demand, without retraining or offline batch processing.
-
-    \item \textbf{Five Transparent Claim-Level Screening Rules:} Design and implementation of five deterministic, field-traceable claim-level screening indicators — covering reimbursement outliers, duplicate billing, duration anomalies, procedure complexity, and beneficiary claim frequency — that complement the probabilistic provider-level ML model with claim-specific, audit-ready evidence.
-
-    \item \textbf{DuckDB-Powered High-Performance Analytical Backend:} Deployment of DuckDB as an embedded analytical query engine over 558,211 claims, achieving sub-10~ms query latency in a fully local, dependency-light deployment context without requiring a separate database server process.
-
-    \item \textbf{SQLite-Backed Investigation Case Management:} Implementation of a fully functional investigation case management module with persistent SQLite storage, supporting case lifecycle management (creation, status tracking, note annotation, audit trail) within the fraud investigation workflow.
-
-    \item \textbf{Interactive Configurable Risk Thresholds:} A dual-threshold fraud risk classification scheme with real-time Streamlit slider controls, allowing investigators to dynamically adjust the boundary between Low, Medium, and High risk tiers and immediately observe the effect on the provider risk distribution across 5,410 providers.
-\end{enumerate}
+\begin{itemize}
+    \item \textbf{Dual-Domain Analytical Framework:} First unified platform combining US Medicare ML fraud detection with Indian NFHS-5 clinical data consistency validation.
+    \item \textbf{Ten-Feature Provider Engineering Pipeline:} Reproducible end-to-end pipeline deriving ten provider-level features from raw CMS SynPUF CSV files.
+    \item \textbf{Weighted Clinical Rule System:} Six-rule framework applied to 724,115 NFHS-5 records, identifying 20,514 (2.83\%) clinically implausible records across five risk tiers.
+    \item \textbf{SHAP-Augmented Provider Risk Profiling:} On-demand, query-driven SHAP waterfall explanations without offline batch reprocessing.
+    \item \textbf{Transparent Claim-Level Screening:} Five deterministic, field-traceable indicators covering reimbursement outliers, duplicate billing, duration anomalies, procedure complexity, and beneficiary frequency.
+    \item \textbf{DuckDB High-Performance Backend and SQLite Case Management:} Sub-10~ms columnar query engine over 558,211 claims with a full investigation lifecycle manager.
+\end{itemize}
 
 \section{Organisation of the Report}
 
-The remainder of this report is organised into six additional chapters, as follows.
-
-\textbf{Chapter 2 — Literature Survey:} Presents a comprehensive review of prior work in healthcare fraud detection, including rule-based expert systems, unsupervised anomaly detection, supervised machine learning approaches applied to Medicare and insurance claims data, explainability methods in medical AI, and clinical data quality validation in population health surveys.
-
-\textbf{Chapter 3 — System Design:} Describes the overall architecture of the proposed system, including the data flow from raw CSV ingestion through feature engineering, model training, DuckDB construction, and Streamlit application deployment. Presents entity-relationship diagrams for the DuckDB and SQLite schemas, module interaction diagrams, and the design rationale for key architectural decisions.
-
-\textbf{Chapter 4 — Implementation:} Provides detailed technical descriptions of each implemented module, including the \texttt{build\_data\_store.py} pipeline, the \texttt{feature\_engineering.py} module, the \texttt{predict.py} ProviderRiskPredictor class, the \texttt{explainability.py} SHAP integration, the \texttt{claims\_repository.py} DuckDB query engine, the \texttt{process\_nfhs.py} NFHS-5 screening pipeline, and the nine Streamlit page modules. Code excerpts, algorithm descriptions, and configuration details are included where relevant.
-
-\textbf{Chapter 5 — Results and Discussion:} Presents the experimental results of the system, including cross-validated and holdout performance metrics for all three ML models, NFHS-5 rule-wise and aggregate flagging statistics, provider risk tier distributions under default and adjusted thresholds, SHAP feature importance rankings, claim screening flag rate statistics, and query performance benchmarks. Results are interpreted in the context of the project objectives and compared with baseline approaches.
-
-\textbf{Chapter 6 — Conclusion and Future Scope:} Summarises the achievements of the project with respect to its stated objectives, discusses the limitations of the current system, and proposes directions for future work including deep learning-based fraud detection, real-time streaming claim ingestion, federated learning for privacy-preserving model training, and extension to additional claim types and geographic contexts.
-
-\textbf{Chapter 7 — Research Publication:} Presents the research paper derived from this project, prepared for submission to a peer-reviewed conference or journal in the domain of AI in healthcare, medical informatics, or fraud detection.
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Chapter} & \textbf{Content} \\
+\hline
+2 — Literature Survey      & Review of fraud detection, anomaly detection, XAI, and clinical data quality methods \\
+3 — System Design          & Architecture, data-flow diagrams, ER schemas, and design rationale \\
+4 — Implementation         & Module-level technical descriptions, code excerpts, and configuration details \\
+5 — Results and Discussion & ML metrics, NFHS-5 flagging statistics, SHAP importances, and query benchmarks \\
+6 — Conclusion             & Achievements, limitations, future enhancements, and deployment scenarios \\
+7 — Research Publication   & Research paper prepared for peer-reviewed conference or journal submission \\
+\hline
+\end{tabular}
+\end{center}
