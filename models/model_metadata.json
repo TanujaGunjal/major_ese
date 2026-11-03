@@ -1,0 +1,64 @@
+{
+  "feature_columns": [
+    "TotalClaims",
+    "TotalReimbursement",
+    "AverageReimbursement",
+    "UniquePatients",
+    "InpatientClaims",
+    "InpatientReimbursement",
+    "InpatientAvgReimbursement",
+    "OutpatientClaims",
+    "OutpatientReimbursement",
+    "OutpatientAvgReimbursement"
+  ],
+  "cv_results": {
+    "Random Forest": {
+      "Accuracy": 0.9303,
+      "Precision": 0.68,
+      "Recall": 0.4764,
+      "F1 Score": 0.5594,
+      "ROC-AUC": 0.9226,
+      "Average Precision": 0.6668
+    },
+    "Logistic Regression": {
+      "Accuracy": 0.8739,
+      "Precision": 0.414,
+      "Recall": 0.834,
+      "F1 Score": 0.5532,
+      "ROC-AUC": 0.9353,
+      "Average Precision": 0.6867
+    },
+    "XGBoost": {
+      "Accuracy": 0.8865,
+      "Precision": 0.4426,
+      "Recall": 0.8083,
+      "F1 Score": 0.5717,
+      "ROC-AUC": 0.9333,
+      "Average Precision": 0.6845
+    }
+  },
+  "thresholds": {
+    "fraud_threshold": 0.3,
+    "high_risk_threshold": 0.7
+  },
+  "total_providers": 5410,
+  "fraud_positive_count": 506,
+  "fraud_positive_pct": 9.35,
+  "risk_level_counts": {
+    "Low": 4882,
+    "High": 395,
+    "Medium": 133
+  },
+  "rf_feature_importances": {
+    "TotalClaims": 0.07216080906506664,
+    "TotalReimbursement": 0.22982304018660313,
+    "AverageReimbursement": 0.07333960649780598,
+    "UniquePatients": 0.07575305952640232,
+    "InpatientClaims": 0.11307984235860581,
+    "InpatientReimbursement": 0.16437933142729153,
+    "InpatientAvgReimbursement": 0.08914484344575654,
+    "OutpatientClaims": 0.05906583148509649,
+    "OutpatientReimbursement": 0.06830370655509911,
+    "OutpatientAvgReimbursement": 0.054949929452272464
+  }
+}

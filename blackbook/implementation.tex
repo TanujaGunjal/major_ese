@@ -1,0 +1,203 @@
+\chapter{Results and Analysis}
+
+\section{Dataset and Experimental Setup}
+
+The proposed system uses two complementary datasets for different analytical purposes. NFHS-5 data is used for medical validation and clinical inconsistency screening, while Medicare healthcare claims data is used for provider-level potential fraud detection.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Dataset} & \textbf{Purpose} & \textbf{Records/Providers} \\
+\hline
+NFHS-5 & Medical Validation & 724,115 records \\
+\hline
+Medicare Claims & Potential Fraud Detection & 5,410 providers \\
+\hline
+\end{tabular}
+\caption{Datasets Used}
+\label{tab:datasets}
+\end{table}
+
+\subsection{NFHS-5 Medical Validation}
+
+The NFHS-5 dataset containing approximately 724,115 records was processed using a rule-based medical validation approach. Six clinical inconsistency rules were evaluated using information related to diabetes, hypertension, treatment, medication, and glucose measurements.
+
+The rules identify patterns such as reported diabetes without treatment, reported hypertension without treatment, treatment without a corresponding diagnosis, high glucose without a reported diabetes diagnosis, and reported diabetes without prescribed medication.
+
+A weighted risk score was assigned to each record based on the detected inconsistencies. The resulting records were classified into Clean, Low, Medium, High, and Critical risk categories.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|r|r|}
+\hline
+\textbf{Risk Category} & \textbf{Records} & \textbf{Percentage} \\
+\hline
+Clean & 703,601 & 97.17\% \\
+\hline
+Low & 5,203 & 0.72\% \\
+\hline
+Medium & 12,512 & 1.73\% \\
+\hline
+High & 2,328 & 0.32\% \\
+\hline
+Critical & 471 & 0.07\% \\
+\hline
+\textbf{Total} & \textbf{724,115} & \textbf{100\%} \\
+\hline
+\end{tabular}
+\caption{NFHS-5 Medical Validation Results}
+\label{tab:nfhs-results}
+\end{table}
+
+A total of 20,514 records, corresponding to approximately 2.83\% of the processed records, were identified with at least one rule-based clinical inconsistency. These records can be prioritized for further examination.
+
+\subsection{Rule-wise Validation Results}
+
+The individual rule frequencies obtained during NFHS-5 validation are presented below.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|r|r|}
+\hline
+\textbf{Validation Rule} & \textbf{Count} & \textbf{Percentage} \\
+\hline
+Diabetes without treatment & 2,679 & 0.37\% \\
+\hline
+Hypertension without treatment & 8,340 & 1.15\% \\
+\hline
+Treatment without diabetes & 0 & 0.00\% \\
+\hline
+Treatment without hypertension & 0 & 0.00\% \\
+\hline
+High glucose without diabetes & 4,790 & 0.66\% \\
+\hline
+Diabetes without medication & 7,894 & 1.09\% \\
+\hline
+\end{tabular}
+\caption{Rule-wise NFHS-5 Validation Results}
+\label{tab:nfhs-rules}
+\end{table}
+
+The results indicate that the majority of NFHS-5 records do not trigger any of the defined validation rules. The identified inconsistencies provide a mechanism for screening records that may require additional clinical or administrative review.
+
+\section{Medicare Provider-level Fraud Detection}
+
+The Medicare dataset was transformed into a provider-level classification dataset. A total of 5,410 providers were available for analysis. Among these, 4,904 providers were labelled as ``No'' and 506 providers were labelled as ``Yes'' under the PotentialFraud variable.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|r|r|}
+\hline
+\textbf{Class} & \textbf{Providers} & \textbf{Percentage} \\
+\hline
+No Potential Fraud & 4,904 & 90.65\% \\
+\hline
+Potential Fraud & 506 & 9.35\% \\
+\hline
+\textbf{Total} & \textbf{5,410} & \textbf{100\%} \\
+\hline
+\end{tabular}
+\caption{Medicare Provider Class Distribution}
+\label{tab:medicare-class}
+\end{table}
+
+The provider-level dataset contains ten engineered features representing claims volume, reimbursement amounts, patient counts, and inpatient and outpatient activity. The data was divided into training and testing subsets using an 80:20 stratified split. This resulted in 4,328 training providers and 1,082 testing providers.
+
+\section{Model Evaluation}
+
+Three supervised machine learning algorithms were evaluated:
+
+\begin{itemize}
+\item Random Forest
+\item Logistic Regression
+\item XGBoost
+\end{itemize}
+
+Five-fold Stratified Cross-Validation was performed to evaluate the models across multiple data splits.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\textbf{Model} & \textbf{Accuracy} & \textbf{Precision} &
+\textbf{Recall} & \textbf{F1} & \textbf{ROC-AUC} & \textbf{AP} \\
+\hline
+Random Forest & 92.98\% & 68.93\% & 44.87\% &
+54.19\% & 92.33\% & 66.11\% \\
+\hline
+Logistic Regression & 87.39\% & 41.40\% & 83.40\% &
+55.32\% & 93.53\% & 68.67\% \\
+\hline
+XGBoost & 88.82\% & 44.73\% & 80.83\% &
+57.56\% & 93.55\% & 69.00\% \\
+\hline
+\end{tabular}
+\caption{Five-fold Cross-Validation Results}
+\label{tab:model-results}
+\end{table}
+
+The cross-validation results show that the three models provide different precision-recall characteristics. Random Forest provides higher precision, while Logistic Regression and XGBoost identify a larger proportion of potentially fraudulent providers. ROC-AUC and Average Precision provide additional information about the models' ability to distinguish between the two classes.
+
+\section{Random Forest Test Results}
+
+The Random Forest model was further evaluated on the held-out test set. At the default classification threshold, the model achieved an accuracy of approximately 93.9\%.
+
+The resulting confusion matrix was:
+
+\begin{equation}
+\begin{bmatrix}
+958 & 23 \\
+43 & 58
+\end{bmatrix}
+\end{equation}
+
+where the rows represent the actual classes and the columns represent the predicted classes.
+
+\begin{figure}[h!]
+\centering
+\fbox{\includegraphics[width=10cm,height=8cm]{confusionmatrix.png}}
+\caption{Random Forest Confusion Matrix}
+\label{fig:rf-confusion}
+\end{figure}
+
+The confusion matrix shows that 958 non-fraudulent providers were correctly classified, while 58 potentially fraudulent providers were correctly identified. There were 23 false positive predictions and 43 false negative predictions.
+
+\section{Classification Threshold Analysis}
+
+The effect of changing the classification threshold was also analyzed for the Random Forest model. Thresholds of 0.5, 0.4, 0.3, and 0.2 were considered.
+
+Changing the threshold affects the balance between precision and recall. A lower threshold increases the sensitivity of the system towards potentially fraudulent providers but may also result in a larger number of false positive predictions. This analysis is useful for selecting an operating threshold according to the requirements of the investigation process.
+
+\begin{figure}[h!]
+\centering
+\fbox{\includegraphics[width=12cm,height=7cm]{threshold_analysis.png}}
+\caption{Random Forest Threshold Analysis}
+\label{fig:threshold}
+\end{figure}
+
+\section{Explainable AI Results}
+
+SHAP (SHapley Additive exPlanations) was used to interpret the predictions generated by the Random Forest model.
+
+The SHAP analysis provides information about the contribution of individual provider-level features to the model output. Features with larger absolute SHAP values have a greater influence on the corresponding model predictions.
+
+\begin{figure}[h!]
+\centering
+\fbox{\includegraphics[width=13cm,height=8cm]{shap_summary.png}}
+\caption{SHAP Summary Plot}
+\label{fig:shap-summary}
+\end{figure}
+
+The SHAP summary plot provides a global view of feature contributions across the dataset. It helps identify which provider-level characteristics have the greatest influence on the model's classification decisions.
+
+\section{Discussion}
+
+The experimental results demonstrate the feasibility of using machine learning for provider-level potential fraud detection and rule-based medical validation for identifying clinically inconsistent records.
+
+The NFHS-5 component identifies a relatively small subset of records containing the defined medical inconsistencies, which can be used for further review. The Medicare component demonstrates that supervised machine learning models can distinguish between providers labelled as potentially fraudulent and non-fraudulent using aggregated claims and reimbursement features.
+
+The use of multiple evaluation metrics is important because the Medicare dataset is class-imbalanced. Accuracy alone does not fully describe fraud detection performance. Precision, recall, F1-score, ROC-AUC, and Average Precision provide complementary views of model behaviour.
+
+The SHAP-based explanation layer further improves the interpretability of the system by showing the contribution of individual features to model predictions. Therefore, the proposed framework can function as a decision-support tool for prioritizing cases for further investigation rather than automatically determining that a provider or claim is fraudulent.
+ 

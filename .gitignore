@@ -1,0 +1,57 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Large raw datasets — too big for GitHub (use git-lfs or share separately)
+*.SAV
+*.sav
+*.zip
+*.tar.gz
+
+# Large Medicare raw CSVs (>50 MB each)
+data/medicare/Train_Outpatientdata*.csv
+data/medicare/Test_Outpatientdata*.csv
+data/medicare/Train_Beneficiarydata*.csv
+data/medicare/Test_Beneficiarydata*.csv
+data/medicare/Train_Inpatientdata*.csv
+data/medicare/Test_Inpatientdata*.csv
+
+# Keep these small/important medicare files
+!data/medicare/Train-1542865627584.csv
+!data/medicare/Test-1542969243754.csv
+!data/medicare/final_model_comparison.csv
+!data/medicare/provider_level_features.csv
+
+# Large processed files (>50 MB)
+data/claims_fraud.duckdb
+data/processed/claims.parquet
+data/processed/beneficiaries.parquet
+
+# Keep small processed files
+!data/processed/providers.parquet
+!data/processed/eval_predictions.parquet
+!data/nfhs/nfhs5_screened_sample.parquet
+!data/nfhs/nfhs5_rule_summary.json
+
+# SQLite investigation workspace (runtime-generated, user-specific)
+data/investigation_workspace.db
+
+# Temporary files & logs
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Streamlit cache
+.streamlit/secrets.toml

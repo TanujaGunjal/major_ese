@@ -1,0 +1,25 @@
+{
+  "total_records_screened": 724115,
+  "total_flagged_records": 20514,
+  "flagged_percentage": 2.83,
+  "high_and_critical_cases": 2799,
+  "clean_count": 703601,
+  "clean_percentage": 97.17,
+  "sample_records": 35000,
+  "sample_flagged": 1213,
+  "sample_distribution": {
+    "Clean": 33787,
+    "Medium": 567,
+    "Low": 484,
+    "High": 150,
+    "Critical": 12
+  },
+  "sample_rule_counts": {
+    "R1_diabetes_no_tx": 147,
+    "R1_htn_no_tx": 460,
+    "R2_tx_without_diabetes": 0,
+    "R2_tx_without_htn": 0,
+    "R3_high_glucose_no_dx": 137,
+    "R4_diabetes_no_meds": 640
+  }
+}

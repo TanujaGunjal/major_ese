@@ -1,0 +1,755 @@
+% chapter3_system_design.tex
+% Chapter 3: System Design and Methodology
+% AI-Based Healthcare Claims Fraud Detection with Medical Validation and Explainable AI
+
+\chapter{System Design and Methodology}
+\label{ch:design}
+
+\section{Proposed System Overview}
+
+The proposed system, ``AI-Based Healthcare Claims Fraud Detection with Medical Validation and Explainable AI,'' is designed as a multi-layered, interactive decision-support platform for healthcare claims fraud investigation. Unlike conventional fraud detection systems that rely on a single classification model producing opaque binary outputs, the proposed system integrates three complementary analytical mechanisms within a unified Streamlit-based dashboard:
+
+\begin{enumerate}
+
+\item \textbf{NFHS-5 Clinical Consistency Validation (Component~1):} A rule-based screening engine that applies six weighted clinical inconsistency rules to India's National Family Health Survey-5 (NFHS-5) data. This component identifies medically inconsistent combinations of self-reported diagnoses, treatment status, medication usage, and glucose measurements.
+
+\item \textbf{Medicare Provider-Level Machine Learning Fraud Detection (Component~2):} A supervised machine learning pipeline that trains Random Forest, Logistic Regression, and XGBoost classifiers on ten engineered provider-level features derived from CMS SynPUF Medicare claims data. Provider-level fraud probabilities are generated and explained using SHAP (SHapley Additive exPlanations).
+
+\item \textbf{Claim-Level Transparent Screening (Mechanism~A):} Five rule-based, transparent screening indicators applied at the individual claim level to detect reimbursement outliers, duplicate billing patterns, date/duration anomalies, complex outpatient procedures, and high-frequency beneficiary utilisation.
+
+\end{enumerate}
+
+These three analytical layers are integrated into a nine-page interactive investigation dashboard built with Streamlit, backed by a DuckDB columnar analytical database for sub-second claim queries and a SQLite database for persistent investigation case management. The system is explicitly designed as a decision-support tool: all outputs are intended to assist trained investigators in prioritising and examining suspicious patterns, not to make automated fraud determinations.
+
+\section{Existing System and Its Limitations}
+
+Traditional healthcare fraud detection systems can be broadly categorised into rule-based systems, statistical anomaly detection methods, and machine learning approaches. Each category has notable limitations that the proposed system seeks to address.
+
+\subsection{Rule-Based Systems}
+
+Conventional rule-based fraud detection systems rely on predefined thresholds and static business rules such as ``flag claims exceeding a fixed dollar amount'' or ``flag providers with more than a threshold number of claims per month.'' While transparent and interpretable, these systems are rigid and cannot adapt to evolving fraud patterns. They generate high false-positive rates when thresholds are set too low and miss sophisticated fraud schemes when thresholds are set too high. They also require continuous manual rule engineering by domain experts.
+
+\subsection{Black-Box Machine Learning Systems}
+
+More recent approaches use supervised machine learning models such as neural networks, gradient boosting, and ensemble methods for fraud classification. While these models often achieve higher accuracy than rule-based systems, they typically operate as black boxes, providing binary fraud/non-fraud predictions without explaining the factors that contributed to each prediction. In healthcare fraud investigation, where legal and regulatory consequences are significant, unexplained model outputs are insufficient for investigator decision-making.
+
+\subsection{Absence of Multi-Level Analysis}
+
+Most existing systems operate at a single level of granularity---either at the claim level or at the provider level---without integrating both perspectives. Furthermore, existing systems rarely incorporate clinical validation or medical consistency checking as a complementary analytical dimension. The proposed system addresses this gap by combining provider-level machine learning, claim-level rule-based screening, and clinical consistency validation within a single investigative platform.
+
+\subsection{Ground Truth Limitations}
+
+A fundamental limitation in healthcare fraud detection research is the scarcity of verified claim-level fraud labels. Due to HIPAA privacy regulations and the investigative nature of fraud adjudication, confirmed fraud labels in publicly available datasets exist primarily at the provider level (through OIG exclusion lists and regulatory sanctions) rather than at the individual claim level. Labelling every claim from a flagged provider as ``fraudulent'' introduces label noise, since even excluded providers submit many legitimate claims. The proposed system explicitly acknowledges this limitation and separates provider-level supervised learning from claim-level heuristic screening.
+
+\section{System Architecture}
+
+The proposed system follows a modular, layered architecture consisting of a data layer, a processing and analytics layer, and a presentation layer. Figure~\ref{fig:sys-arch} presents the overall system architecture.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=0.8cm and 1.2cm,
+    block/.style={rectangle, draw, rounded corners, minimum width=3.2cm, minimum height=0.9cm, align=center, font=\small},
+    data/.style={block, fill=blue!10},
+    proc/.style={block, fill=green!10},
+    pres/.style={block, fill=orange!10},
+    db/.style={cylinder, draw, shape border rotate=90, minimum width=1.8cm, minimum height=0.9cm, aspect=0.2, font=\small, fill=yellow!10},
+    arr/.style={-{Stealth[length=2.5mm]}, thick}
+]
+
+% Data Layer
+\node[data] (raw) {Raw Medicare CSVs\\(Inpatient, Outpatient,\\Beneficiary, Labels)};
+\node[data, right=of raw] (nfhs) {NFHS-5 Data\\(.sav format)};
+
+% Processing Layer
+\node[proc, below=1.2cm of raw] (feateng) {Feature Engineering\\(10 Provider Features)};
+\node[proc, right=of feateng] (nfhsproc) {NFHS-5 Rule\\Screening Engine};
+\node[proc, below=of feateng] (ml) {ML Training Pipeline\\(RF, LR, XGBoost)};
+\node[proc, right=of ml] (screen) {Claim-Level Screening\\(5 Transparent Rules)};
+\node[proc, below=of ml] (predict) {Inference Module\\(ProviderRiskPredictor)};
+\node[proc, right=of predict] (shap) {SHAP Explainability\\(TreeExplainer)};
+
+% Database Layer
+\node[db, below=1.2cm of predict] (duckdb) {DuckDB\\(claims\_fraud.duckdb)};
+\node[db, right=1.8cm of duckdb] (sqlite) {SQLite\\(investigation.db)};
+
+% Presentation Layer
+\node[pres, below=1.2cm of duckdb, xshift=1.5cm] (dash) {Streamlit Dashboard\\(9 Interactive Pages)};
+
+% Arrows
+\draw[arr] (raw) -- (feateng);
+\draw[arr] (nfhs) -- (nfhsproc);
+\draw[arr] (feateng) -- (ml);
+\draw[arr] (raw) |- (screen);
+\draw[arr] (ml) -- (predict);
+\draw[arr] (predict) -- (shap);
+\draw[arr] (ml.south) -- ++(0,-0.3) -| (duckdb);
+\draw[arr] (screen.south) -- ++(0,-0.8) -| ([xshift=0.3cm]duckdb.north);
+\draw[arr] (nfhsproc.south) -- ++(0,-2.5) -| ([xshift=0.6cm]duckdb.north);
+\draw[arr] (duckdb) -- (dash);
+\draw[arr] (sqlite) -- (dash);
+\draw[arr] (predict.south) -- ++(0,-0.3) -| ([xshift=-0.3cm]duckdb.north);
+\draw[arr] (shap) |- (dash);
+
+\end{tikzpicture}
+\caption{Proposed System Architecture}
+\label{fig:sys-arch}
+\end{figure}
+
+The architecture is divided into three layers:
+
+\begin{itemize}
+
+\item \textbf{Data Layer:} Contains raw Medicare CSV files (inpatient, outpatient, beneficiary, and provider labels) and the NFHS-5 survey data in SPSS (.sav) format. This layer also includes the processed Parquet files and the DuckDB analytical database.
+
+\item \textbf{Processing and Analytics Layer:} Contains the feature engineering module, the machine learning training pipeline, the inference module, the SHAP explainability module, the claim-level screening engine, and the NFHS-5 rule screening engine.
+
+\item \textbf{Presentation Layer:} Contains the Streamlit multi-page dashboard application with nine interactive pages, the SQLite investigation workspace for case management, and the Plotly visualisation generators.
+
+\end{itemize}
+
+\section{Overall System Workflow}
+
+The complete system workflow, from raw data ingestion to interactive investigation, proceeds through the following steps:
+
+\begin{enumerate}
+
+\item \textbf{Data Collection:} Raw Medicare CSV files (inpatient claims, outpatient claims, beneficiary demographics, and provider labels) are collected from the CMS SynPUF public dataset. NFHS-5 data is obtained from the International Institute for Population Sciences (IIPS).
+
+\item \textbf{Data Preprocessing:} Date columns are parsed, missing values are handled, and data types are standardised. Beneficiary ages are computed from the date of birth relative to the dataset reference date (2009-12-31). Gender, state, and race codes are mapped to descriptive labels.
+
+\item \textbf{Feature Engineering:} Inpatient and outpatient claims are aggregated at the provider level to produce ten statistical features. Five binary claim-level screening flags are computed.
+
+\item \textbf{Model Training:} Three supervised classifiers (Random Forest, Logistic Regression, XGBoost) are trained on the provider-level feature matrix with five-fold Stratified Cross-Validation. Production models are fitted on the full dataset and serialised using joblib.
+
+\item \textbf{NFHS-5 Screening:} The six clinical consistency rules are applied to the NFHS-5 data, producing weighted risk scores and risk category assignments.
+
+\item \textbf{Data Persistence:} Processed data is stored in Parquet format and loaded into a DuckDB database with indexed tables for sub-second query performance.
+
+\item \textbf{Interactive Investigation:} The Streamlit dashboard provides nine specialised pages for exploring claims, providers, beneficiaries, screening results, model performance, NFHS-5 consistency, and investigation case management.
+
+\item \textbf{Explainable Predictions:} SHAP TreeExplainer generates local feature attribution values for individual provider predictions, translated into plain-English investigator findings.
+
+\item \textbf{Case Management:} Investigators create, update, and annotate investigation cases using the SQLite-backed workspace. An audit trail records all status transitions.
+
+\end{enumerate}
+
+Figure~\ref{fig:workflow} illustrates this workflow as an activity diagram.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=0.7cm,
+    block/.style={rectangle, draw, rounded corners, minimum width=4.5cm, minimum height=0.7cm, align=center, font=\small},
+    decision/.style={diamond, draw, minimum width=2cm, minimum height=1cm, align=center, font=\small, inner sep=1pt},
+    startstop/.style={ellipse, draw, minimum width=2cm, minimum height=0.7cm, align=center, font=\small, fill=gray!15},
+    arr/.style={-{Stealth[length=2.5mm]}, thick}
+]
+
+\node[startstop] (start) {Start};
+\node[block, below=of start] (load) {Load Raw Medicare CSVs and NFHS-5 Data};
+\node[block, below=of load] (preprocess) {Preprocess and Validate Data};
+\node[block, below=of preprocess] (feat) {Engineer 10 Provider Features};
+\node[block, below=of feat] (screen) {Compute 5 Claim Screening Flags};
+\node[block, below=of screen] (train) {Train RF, LR, XGBoost Models};
+\node[block, below=of train] (nfhs) {Apply 6 NFHS-5 Clinical Rules};
+\node[block, below=of nfhs] (persist) {Persist to Parquet and DuckDB};
+\node[block, below=of persist] (dashboard) {Launch Streamlit Dashboard};
+\node[block, below=of dashboard] (investigate) {Investigator Explores and Creates Cases};
+\node[startstop, below=of investigate] (end) {End};
+
+\draw[arr] (start) -- (load);
+\draw[arr] (load) -- (preprocess);
+\draw[arr] (preprocess) -- (feat);
+\draw[arr] (feat) -- (screen);
+\draw[arr] (screen) -- (train);
+\draw[arr] (train) -- (nfhs);
+\draw[arr] (nfhs) -- (persist);
+\draw[arr] (persist) -- (dashboard);
+\draw[arr] (dashboard) -- (investigate);
+\draw[arr] (investigate) -- (end);
+
+\end{tikzpicture}
+\caption{Overall System Workflow Activity Diagram}
+\label{fig:workflow}
+\end{figure}
+
+\section{Functional Requirements}
+
+The functional requirements of the proposed system are summarised in Table~\ref{tab:func-req}.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|p{10cm}|}
+\hline
+\textbf{ID} & \textbf{Functional Requirement} \\
+\hline
+FR-01 & The system shall load and preprocess raw Medicare CSV files (inpatient, outpatient, beneficiary, and labels). \\
+\hline
+FR-02 & The system shall engineer ten provider-level aggregate features from claim records. \\
+\hline
+FR-03 & The system shall compute five binary claim-level screening flags. \\
+\hline
+FR-04 & The system shall train Random Forest, Logistic Regression, and XGBoost classifiers on provider-level features. \\
+\hline
+FR-05 & The system shall perform five-fold Stratified Cross-Validation and report six evaluation metrics per model. \\
+\hline
+FR-06 & The system shall generate provider fraud probability scores and assign risk tiers (Low, Medium, High). \\
+\hline
+FR-07 & The system shall provide SHAP-based local feature attribution for individual provider predictions. \\
+\hline
+FR-08 & The system shall apply six clinical consistency rules to NFHS-5 data and assign weighted risk scores. \\
+\hline
+FR-09 & The system shall allow investigators to search and filter 558,211 claims by multiple criteria with sub-second response. \\
+\hline
+FR-10 & The system shall support claim investigation with full detail display including ICD codes, procedure codes, and screening evidence. \\
+\hline
+FR-11 & The system shall display longitudinal beneficiary claims timelines with chronic condition profiles. \\
+\hline
+FR-12 & The system shall allow threshold adjustment and dynamic recalculation of precision, recall, F1-score, and confusion matrix. \\
+\hline
+FR-13 & The system shall maintain a persistent investigation workspace with case creation, notes, status transitions, and audit logs. \\
+\hline
+FR-14 & The system shall support JSON export of investigation case records. \\
+\hline
+\end{tabular}
+\caption{Functional Requirements}
+\label{tab:func-req}
+\end{table}
+
+\section{Non-Functional Requirements}
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|p{10cm}|}
+\hline
+\textbf{ID} & \textbf{Non-Functional Requirement} \\
+\hline
+NFR-01 & Claim search queries on 558,211 records shall complete in under 10 milliseconds using DuckDB indexed lookups. \\
+\hline
+NFR-02 & The system shall be usable on commodity hardware with at least 4\,GB RAM (8\,GB recommended). \\
+\hline
+NFR-03 & All model predictions shall be accompanied by interpretable SHAP explanations. \\
+\hline
+NFR-04 & The system shall use parameterised database queries and column whitelisting to prevent SQL injection. \\
+\hline
+NFR-05 & NFHS-5 and Medicare data shall be maintained in separate analytical modules with no record-level linkage. \\
+\hline
+NFR-06 & The SQLite investigation database shall enforce ACID-compliant transactions with foreign key constraints. \\
+\hline
+NFR-07 & The system shall maintain a complete audit trail for all investigation case status transitions. \\
+\hline
+NFR-08 & The dashboard interface shall render correctly on standard web browsers at 1920$\times$1080 resolution. \\
+\hline
+\end{tabular}
+\caption{Non-Functional Requirements}
+\label{tab:nfr}
+\end{table}
+
+\section{Hardware and Software Requirements}
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Component} & \textbf{Requirement} \\
+\hline
+\multicolumn{2}{|c|}{\textbf{Hardware Requirements}} \\
+\hline
+Processor & Intel Core i5 or equivalent (64-bit) \\
+\hline
+RAM & Minimum 4\,GB; Recommended 8\,GB \\
+\hline
+Storage & Minimum 500\,MB free disk space \\
+\hline
+Display & 1920$\times$1080 resolution or higher \\
+\hline
+Network & Required only for initial dependency installation \\
+\hline
+\multicolumn{2}{|c|}{\textbf{Software Requirements}} \\
+\hline
+Operating System & Windows 10/11, Linux, or macOS \\
+\hline
+Python & 3.11, 3.12, or 3.13 (64-bit) \\
+\hline
+Streamlit & $\geq$ 1.46.0 \\
+\hline
+DuckDB & $\geq$ 1.0.0 \\
+\hline
+scikit-learn & $\geq$ 1.4.0 \\
+\hline
+XGBoost & $\geq$ 2.0.0 \\
+\hline
+SHAP & $\geq$ 0.45.0 \\
+\hline
+pandas & $\geq$ 2.2.0 \\
+\hline
+NumPy & $\geq$ 1.26.0 \\
+\hline
+Plotly & $\geq$ 5.20.0 \\
+\hline
+PyArrow & $\geq$ 15.0.0 \\
+\hline
+Web Browser & Chrome, Firefox, or Edge \\
+\hline
+\end{tabular}
+\caption{Hardware and Software Requirements}
+\label{tab:hw-sw}
+\end{table}
+
+\section{System Modules}
+
+The proposed system is organised into the following functional modules, each implemented as a separate Python file within the \verb|src/| directory.
+
+\subsection{Data Loading Module (\texttt{src/data\_loader.py})}
+
+This module provides thread-safe connections to the DuckDB analytical database and cached loading functions for Parquet and JSON data artefacts. The primary function \verb|get_duckdb_connection(read_only=True)| establishes a connection to the pre-built \verb|claims_fraud.duckdb| file. If the DuckDB file does not exist, the module falls back to creating DuckDB views that read directly from the Parquet files. Additional loader functions (\verb|load_model_metadata()|, \verb|load_providers_df()|, \verb|load_nfhs_summary()|, \verb|load_nfhs_sample_df()|, \verb|load_eval_predictions()|) provide convenient access to specific data artefacts.
+
+\subsection{Preprocessing Module (\texttt{src/preprocessing.py})}
+
+This module standardises data types, formats clinical codes, and provides currency conversion utilities. It contains FIPS-to-state mappings for 52 U.S.\ state codes, race code mappings, and a list of 11 chronic condition columns with human-readable display names. The module provides bidirectional USD-to-INR currency conversion using a configurable exchange rate (default: 1~USD = 83~INR), Indian digit grouping for INR display, and a traceability format (\verb|format_money_trace()|) that shows both the converted INR amount and the original source USD amount. Date formatting, chronic condition extraction, and ICD/procedure code parsing functions are also provided.
+
+\subsection{Feature Engineering Module (\texttt{src/feature\_engineering.py})}
+
+This module implements two core functions. The \verb|compute_provider_features()| function aggregates raw claim records at the provider level to produce ten statistical features: TotalClaims, TotalReimbursement, AverageReimbursement, UniquePatients, InpatientClaims, InpatientReimbursement, InpatientAvgReimbursement, OutpatientClaims, OutpatientReimbursement, and OutpatientAvgReimbursement. The \verb|screen_individual_claim()| function evaluates five transparent screening indicators for a single claim record, incorporating historical statistics from DuckDB (such as the claim-type-specific 99th percentile reimbursement) where available.
+
+\subsection{Machine Learning Inference Module (\texttt{src/predict.py})}
+
+This module provides the \verb|ProviderRiskPredictor| class, a singleton wrapper that loads the three trained model artefacts (Random Forest, Logistic Regression, XGBoost) from their respective joblib files at initialisation. The \verb|predict_provider()| method accepts a dictionary of ten provider features and a model name, constructs a single-row DataFrame with the exact feature column order, invokes the selected model's \verb|predict_proba()| method, and returns the fraud probability, percentage, risk tier (Low/Medium/High), and flagging status based on the configured thresholds (0.30 for Medium, 0.70 for High).
+
+\subsection{Explainability Module (\texttt{src/explainability.py})}
+
+This module uses SHAP TreeExplainer to compute local feature contribution values for individual provider predictions from the Random Forest model. The \verb|explain_provider_prediction()| function initialises a \verb|shap.TreeExplainer| on the trained Random Forest, computes SHAP values for the class~1 (Potential Fraud) output, sorts features by absolute SHAP impact, and synthesises plain-English investigator findings based on the top three risk-elevating and top two risk-reducing features. The \verb|get_global_feature_importance()| function returns Gini-based feature importances from the Random Forest.
+
+\subsection{Claims Repository Module (\texttt{src/claims\_repository.py})}
+
+This module serves as the high-performance query engine for the DuckDB analytical database. It provides functions for executive KPI metrics (\verb|get_executive_metrics()|), paginated claim search with dynamic filtering (\verb|search_claims()|), individual claim retrieval (\verb|get_claim_by_id()|), claim screening baselines (\verb|get_claim_screening_stats()|), beneficiary profile and timeline retrieval (\verb|get_beneficiary_profile()|, \verb|get_claims_by_beneficiary()|), provider profile and claims retrieval (\verb|get_provider_profile()|, \verb|get_claims_by_provider()|), top provider ranking (\verb|get_top_providers()|), screening rule evidence queries (\verb|get_screening_claims()|), and screening rule audit comparisons (\verb|get_screening_rule_audit()|). All queries use parameterised SQL with explicit column whitelists to prevent injection.
+
+\subsection{Investigation Workspace Module (\texttt{src/investigation.py})}
+
+This module implements persistent case management using SQLite. It creates three tables (\verb|cases|, \verb|case_notes|, \verb|audit_log|) at import time and provides CRUD functions: \verb|create_or_get_case()| (idempotent case creation with \verb|ON CONFLICT DO NOTHING|), \verb|update_case_status()| (transactional status/priority updates with per-field audit logging), \verb|add_case_note()| (timestamped investigator notes), \verb|list_cases()| (filtered retrieval), and \verb|get_case_full_history()| (complete case record with notes and audit trail).
+
+\subsection{Visualisation Module (\texttt{src/visualizations.py})}
+
+This module generates standardised Plotly charts following a healthcare analytics visual theme. Chart types include claim type donut charts, provider risk tier bar charts, cross-validation model comparison grouped bar charts, SHAP contribution waterfall charts, beneficiary claim timeline scatter plots with INR-converted y-axes, NFHS-5 risk category distribution bar charts (log scale), and NFHS-5 rule breakdown horizontal bars.
+
+\section{Data Flow Diagram}
+
+The data flow through the system can be divided into two phases: the offline data preparation phase (executed by \verb|scripts/build_data_store.py|) and the online interactive phase (executed by the Streamlit dashboard).
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=0.6cm and 0.8cm,
+    block/.style={rectangle, draw, rounded corners, minimum width=3cm, minimum height=0.7cm, align=center, font=\scriptsize},
+    io/.style={trapezium, draw, trapezium left angle=70, trapezium right angle=110, minimum width=2.5cm, minimum height=0.6cm, align=center, font=\scriptsize},
+    db/.style={cylinder, draw, shape border rotate=90, minimum width=1.5cm, minimum height=0.7cm, aspect=0.2, font=\scriptsize},
+    arr/.style={-{Stealth[length=2mm]}, thick}
+]
+
+% Input data
+\node[io] (csv) {Medicare CSVs};
+\node[io, right=2cm of csv] (nfhsin) {NFHS-5 .sav};
+
+% Processing
+\node[block, below=0.8cm of csv] (combine) {Combine Inpatient +\\Outpatient Claims};
+\node[block, below=of combine] (provfeat) {Aggregate Provider\\Features (10)};
+\node[block, right=of provfeat] (claimflag) {Compute Screening\\Flags (5)};
+\node[block, below=0.8cm of nfhsin] (nfhsrule) {Apply 6 Clinical\\Rules + Risk Score};
+
+% ML
+\node[block, below=of provfeat] (trainml) {Train RF, LR, XGB\\+ SHAP};
+
+% Outputs
+\node[db, below=1cm of trainml] (parquet) {Parquet Files};
+\node[db, right=1.5cm of parquet] (duckdb) {DuckDB};
+\node[db, right=1.5cm of duckdb] (sqlitedb) {SQLite};
+
+% Dashboard
+\node[block, below=1cm of duckdb] (streamlit) {Streamlit 9-Page\\Dashboard};
+
+% Arrows
+\draw[arr] (csv) -- (combine);
+\draw[arr] (combine) -- (provfeat);
+\draw[arr] (combine) -| (claimflag);
+\draw[arr] (nfhsin) -- (nfhsrule);
+\draw[arr] (provfeat) -- (trainml);
+\draw[arr] (trainml) -- (parquet);
+\draw[arr] (parquet) -- (duckdb);
+\draw[arr] (claimflag) |- (parquet);
+\draw[arr] (nfhsrule) |- (parquet);
+\draw[arr] (duckdb) -- (streamlit);
+\draw[arr] (sqlitedb) -- (streamlit);
+
+\end{tikzpicture}
+\caption{System Data Flow Diagram}
+\label{fig:dfd}
+\end{figure}
+
+In the offline phase, the \verb|build_data_store.py| script loads the four raw Medicare CSV files, combines inpatient and outpatient claims, engineers provider-level features, trains the three machine learning models, computes claim-level screening flags, and persists all outputs as Parquet files and a DuckDB database. In the online phase, the Streamlit dashboard reads from DuckDB for claim/provider/beneficiary queries, loads model artefacts from joblib files for on-demand inference, and uses the SQLite database for investigation case management.
+
+\section{Dataset Architecture}
+
+\subsection{NFHS-5 Dataset}
+
+The National Family Health Survey-5 (NFHS-5) dataset is a nationally representative household survey conducted across India during 2019--2021 by the International Institute for Population Sciences (IIPS), Mumbai, under the Ministry of Health and Family Welfare. The dataset contains approximately 724,115 female respondent records with a large number of health, demographic, and socioeconomic variables.
+
+For the proposed system, the following clinically relevant variables are selected:
+
+\begin{itemize}
+\item Diabetes diagnosis status (self-reported)
+\item Hypertension diagnosis status (self-reported)
+\item Diabetes treatment status
+\item Hypertension treatment status
+\item Prescribed medication status for diabetes
+\item Random blood glucose measurement (mg/dL)
+\end{itemize}
+
+The data is read using \verb|pyreadstat| (which handles SPSS .sav format) and processed in memory-efficient chunks. The resulting screened sample of 35,000 records is stored in \verb|data/nfhs/nfhs5_screened_sample.parquet|. A nationwide benchmark summary with aggregate rule trigger counts is stored in \verb|data/nfhs/nfhs5_rule_summary.json|.
+
+\subsection{CMS SynPUF Medicare Dataset}
+
+The CMS SynPUF (Synthetic Public Use File) Medicare dataset consists of four CSV files:
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{File} & \textbf{Contents} & \textbf{Key Fields} \\
+\hline
+Train-1542865627584.csv & Provider labels & Provider, PotentialFraud \\
+\hline
+Train\_Inpatientdata & Inpatient claims & ClaimID, BeneID, Provider, \\
+ & & AdmissionDt, DischargeDt, \\
+ & & InscClaimAmtReimbursed, \\
+ & & 10 DiagnosisCodes, 6 ProcedureCodes \\
+\hline
+Train\_Outpatientdata & Outpatient claims & ClaimID, BeneID, Provider, \\
+ & & ClaimStartDt, ClaimEndDt, \\
+ & & InscClaimAmtReimbursed, \\
+ & & 10 DiagnosisCodes, 6 ProcedureCodes \\
+\hline
+Train\_Beneficiarydata & Beneficiary demographics & BeneID, DOB, DOD, Gender, \\
+ & & State, Race, 11 ChronicCond flags \\
+\hline
+\end{tabular}
+\caption{CMS SynPUF Medicare Dataset File Structure}
+\label{tab:medicare-files}
+\end{table}
+
+After combination, the integrated dataset contains 558,211 claims across 5,410 providers and multiple beneficiaries. The provider-level label distribution is 4,904 (90.65\%) non-fraudulent and 506 (9.35\%) potentially fraudulent.
+
+\section{Feature Engineering Design}
+
+\subsection{Provider-Level Feature Aggregation}
+
+The ten provider-level features are computed by aggregating raw claim-level records using pandas \verb|groupby()| operations. Overall features (TotalClaims, TotalReimbursement, AverageReimbursement, UniquePatients) are computed across all claims for each provider. Inpatient-specific and outpatient-specific features are computed separately and merged with a left join, with missing values filled with zero for providers who have only inpatient or only outpatient claims.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|c|l|l|l|}
+\hline
+\textbf{\#} & \textbf{Feature} & \textbf{Aggregation} & \textbf{Source Column} \\
+\hline
+1 & TotalClaims & count & ClaimID \\
+\hline
+2 & TotalReimbursement & sum & InscClaimAmtReimbursed \\
+\hline
+3 & AverageReimbursement & mean & InscClaimAmtReimbursed \\
+\hline
+4 & UniquePatients & nunique & BeneID \\
+\hline
+5 & InpatientClaims & count (Inpatient) & ClaimID \\
+\hline
+6 & InpatientReimbursement & sum (Inpatient) & InscClaimAmtReimbursed \\
+\hline
+7 & InpatientAvgReimbursement & mean (Inpatient) & InscClaimAmtReimbursed \\
+\hline
+8 & OutpatientClaims & count (Outpatient) & ClaimID \\
+\hline
+9 & OutpatientReimbursement & sum (Outpatient) & InscClaimAmtReimbursed \\
+\hline
+10 & OutpatientAvgReimbursement & mean (Outpatient) & InscClaimAmtReimbursed \\
+\hline
+\end{tabular}
+\caption{Provider-Level Feature Engineering Specification}
+\label{tab:feature-spec}
+\end{table}
+
+\section{Algorithm Design}
+
+\subsection{NFHS-5 Clinical Consistency Rules}
+
+Six rules are applied to identify medically inconsistent patterns in the NFHS-5 data. Each rule produces a binary indicator ($R_i \in \{0, 1\}$), and a weighted risk score is computed as:
+
+\begin{equation}
+\text{RiskScore} = 3 R_{1A} + 3 R_{1B} + 5 R_{2A} + 5 R_{2B} + 4 R_3 + 2 R_4
+\label{eq:riskscore}
+\end{equation}
+
+where:
+\begin{itemize}
+\item $R_{1A}$: Diabetes reported without corresponding treatment (weight = 3)
+\item $R_{1B}$: Hypertension reported without corresponding treatment (weight = 3)
+\item $R_{2A}$: Treatment reported without a diabetes diagnosis (weight = 5)
+\item $R_{2B}$: Treatment reported without a hypertension diagnosis (weight = 5)
+\item $R_3$: Random blood glucose $\geq$ 200 mg/dL without a diabetes diagnosis (weight = 4)
+\item $R_4$: Diabetes reported without prescribed medication (weight = 2)
+\end{itemize}
+
+The higher weights for $R_{2A}$ and $R_{2B}$ reflect the greater clinical implausibility of receiving treatment for a condition that has not been diagnosed. Records are classified into risk categories: Clean ($=0$), Low ($\leq 2$), Medium ($\leq 4$), High ($\leq 6$), and Critical ($>6$).
+
+\subsection{Claim-Level Screening Rules}
+
+Five transparent, rule-based screening indicators are computed at the individual claim level:
+
+\begin{enumerate}
+\item \textbf{Reimbursement Outlier:} InscClaimAmtReimbursed exceeds the 99th percentile for the corresponding claim type (inpatient or outpatient), computed using \verb|quantile(0.99)|.
+\item \textbf{Duplicate Billing:} Multiple claim records share the same combination of BeneID, Provider, and ClaimStartDt, identified using \verb|pandas.duplicated(subset=[...], keep=False)|.
+\item \textbf{Duration Anomaly:} ClaimDurationDays $< 0$, LengthOfStayDays $< 0$, discharge date before admission date, or claim end date before start date.
+\item \textbf{Complex Procedure:} Outpatient claim with $\geq 3$ non-null procedure codes (ClmProcedureCode\_1 through ClmProcedureCode\_6).
+\item \textbf{High-Frequency Beneficiary:} Beneficiary with $\geq 15$ total claims within the dataset window (2008--2009).
+\end{enumerate}
+
+A composite ScreeningFlagsCount is computed as the sum of the five binary flags. The AI Review Recommendation is then derived from the combination of provider risk level and screening flag count.
+
+\subsection{Random Forest Classifier}
+
+The Random Forest classifier constructs an ensemble of 100 decision trees (\verb|n_estimators=100|), each trained on a bootstrap sample of the training data with random feature subsets. For a given provider feature vector $\mathbf{x}$, each tree $t_k$ produces a class vote. The ensemble probability is:
+
+\begin{equation}
+P(\text{Fraud} | \mathbf{x}) = \frac{1}{K} \sum_{k=1}^{K} I(t_k(\mathbf{x}) = \text{Fraud})
+\label{eq:rf}
+\end{equation}
+
+where $K = 100$ is the number of trees and $I(\cdot)$ is the indicator function. Each tree uses Gini impurity as the split criterion:
+
+\begin{equation}
+G(p) = 1 - \sum_{c=1}^{C} p_c^2
+\label{eq:gini}
+\end{equation}
+
+where $p_c$ is the proportion of class $c$ samples at a given node.
+
+\subsection{Logistic Regression Classifier}
+
+Logistic Regression models the log-odds of the positive class as a linear combination of features:
+
+\begin{equation}
+\log \frac{P(\text{Fraud} | \mathbf{x})}{1 - P(\text{Fraud} | \mathbf{x})} = \mathbf{w}^T \mathbf{x} + b
+\label{eq:logreg}
+\end{equation}
+
+The probability is obtained via the sigmoid function:
+
+\begin{equation}
+P(\text{Fraud} | \mathbf{x}) = \sigma(\mathbf{w}^T \mathbf{x} + b) = \frac{1}{1 + e^{-(\mathbf{w}^T \mathbf{x} + b)}}
+\label{eq:sigmoid}
+\end{equation}
+
+In the implementation, features are first standardised using \verb|StandardScaler| (zero mean, unit variance) to ensure numerical stability. Class weighting (\verb|class_weight='balanced'|) adjusts the loss function to give higher weight to the minority fraud class, with per-class weights inversely proportional to class frequency.
+
+\subsection{XGBoost Classifier}
+
+XGBoost (eXtreme Gradient Boosting) builds a sequence of decision trees where each subsequent tree is trained to correct the residual errors of the ensemble so far. The objective function minimised at each iteration is:
+
+\begin{equation}
+\mathcal{L}(\phi) = \sum_{i=1}^{n} l(y_i, \hat{y}_i) + \sum_{k=1}^{K} \Omega(f_k)
+\label{eq:xgb}
+\end{equation}
+
+where $l$ is the logistic loss function, $\hat{y}_i$ is the predicted probability for provider $i$, and $\Omega(f_k) = \gamma T_k + \frac{1}{2}\lambda \|\mathbf{w}_k\|^2$ is the regularisation term penalising tree complexity. The implementation uses \verb|n_estimators=100|, \verb|max_depth=4|, \verb|learning_rate=0.1|, \verb|subsample=0.8|, \verb|colsample_bytree=0.8|, and \verb|scale_pos_weight=9.69| (the ratio of negative to positive class counts).
+
+\subsection{SHAP-Based Explainability}
+
+SHAP assigns each feature $i$ a contribution value $\phi_i$ for a given prediction based on Shapley values from cooperative game theory:
+
+\begin{equation}
+\phi_i = \sum_{S \subseteq F \setminus \{i\}} \frac{|S|! \, (|F| - |S| - 1)!}{|F|!} \left[ f(S \cup \{i\}) - f(S) \right]
+\label{eq:shap}
+\end{equation}
+
+where $F$ is the set of all features, $S$ is a subset of features excluding $i$, and $f(S)$ is the model output using only the features in $S$. For tree-based models, SHAP provides an efficient \verb|TreeExplainer| algorithm that computes exact Shapley values in polynomial time by exploiting the tree structure. The contributions satisfy the property:
+
+\begin{equation}
+f(\mathbf{x}) = \phi_0 + \sum_{i=1}^{10} \phi_i
+\label{eq:shap-additivity}
+\end{equation}
+
+where $\phi_0$ is the expected model output (base value) and $\phi_i$ is the contribution of feature $i$ to the difference between the provider's predicted probability and the base value.
+
+\section{Mathematical Formulation of Evaluation Metrics}
+
+The following classification metrics are used for model evaluation:
+
+\begin{equation}
+\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}
+\label{eq:accuracy}
+\end{equation}
+
+\begin{equation}
+\text{Precision} = \frac{TP}{TP + FP}
+\label{eq:precision}
+\end{equation}
+
+\begin{equation}
+\text{Recall} = \frac{TP}{TP + FN}
+\label{eq:recall}
+\end{equation}
+
+\begin{equation}
+\text{F1\text{-}Score} = 2 \cdot \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}
+\label{eq:f1}
+\end{equation}
+
+where $TP$ = True Positives, $TN$ = True Negatives, $FP$ = False Positives, and $FN$ = False Negatives. ROC-AUC measures the area under the Receiver Operating Characteristic curve (True Positive Rate versus False Positive Rate at all thresholds). Average Precision summarises the precision-recall curve as the weighted mean of precisions at each recall threshold.
+
+\section{Database Design}
+
+\subsection{DuckDB Analytical Database}
+
+The DuckDB database (\verb|claims_fraud.duckdb|, approximately 85\,MB) stores three main tables with the following structure and indexes:
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Table} & \textbf{Key Columns} & \textbf{Indexes} \\
+\hline
+claims & ClaimID (PK), BeneID, Provider, & idx\_claims\_claimid, \\
+ & ClaimType, InscClaimAmtReimbursed, & idx\_claims\_beneid, \\
+ & 5 screening flags, ProviderRiskLevel, & idx\_claims\_provider \\
+ & AIReviewRecommendation, 10 DiagCodes, & \\
+ & 6 ProcCodes, ScreeningFlagsCount & \\
+\hline
+beneficiaries & BeneID (PK), DOB, DOD, Age, & idx\_beneficiaries\_beneid \\
+ & Gender, State, Race, 11 ChronicCond & \\
+\hline
+providers & Provider (PK), PotentialFraud, & idx\_providers\_provider \\
+ & RiskLevel, FraudProbability, & \\
+ & 10 provider features, RF/LR/XGB probs & \\
+\hline
+\end{tabular}
+\caption{DuckDB Database Schema}
+\label{tab:duckdb-schema}
+\end{table}
+
+DuckDB was selected as the analytical engine because of its columnar storage format optimised for analytical queries, in-process execution without a separate server, native Parquet integration, and support for window functions (used for screening rule evidence queries such as \verb|quantile_cont() OVER (PARTITION BY ClaimType)|).
+
+\subsection{SQLite Investigation Workspace Database}
+
+The SQLite investigation workspace (\verb|investigation_workspace.db|) stores three tables for persistent case management:
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    entity/.style={rectangle, draw, minimum width=4cm, minimum height=2.5cm, align=left, font=\scriptsize},
+    arr/.style={-{Stealth[length=2mm]}, thick}
+]
+
+\node[entity] (cases) {
+\textbf{cases}\\
+\underline{id} INTEGER PK\\
+case\_id TEXT UNIQUE\\
+target\_type TEXT\\
+target\_id TEXT\\
+priority TEXT\\
+status TEXT\\
+assigned\_investigator TEXT\\
+reason\_for\_review TEXT\\
+summary\_facts TEXT\\
+created\_at TIMESTAMP\\
+updated\_at TIMESTAMP
+};
+
+\node[entity, right=1.5cm of cases] (notes) {
+\textbf{case\_notes}\\
+\underline{id} INTEGER PK\\
+case\_id TEXT FK\\
+author TEXT\\
+note\_text TEXT\\
+created\_at TIMESTAMP
+};
+
+\node[entity, below=0.8cm of notes] (audit) {
+\textbf{audit\_log}\\
+\underline{id} INTEGER PK\\
+case\_id TEXT FK\\
+action TEXT\\
+old\_value TEXT\\
+new\_value TEXT\\
+performed\_by TEXT\\
+timestamp TIMESTAMP
+};
+
+\draw[arr] (cases.east) -- node[above, font=\tiny]{1:N} (notes.west);
+\draw[arr] (cases.south east) |- node[right, font=\tiny, pos=0.3]{1:N} (audit.west);
+
+\end{tikzpicture}
+\caption{SQLite Investigation Workspace ER Diagram}
+\label{fig:er-sqlite}
+\end{figure}
+
+A unique composite index on \verb|(target_type, target_id)| ensures that only one investigation case can exist per target entity (e.g., one case per claim ID or one case per provider ID). Foreign key enforcement is enabled using \verb|PRAGMA foreign_keys = ON|.
+
+The case status options are: New, Under Review, Escalated, Reviewed/Closed, Closed -- False Positive, and Closed -- Suspected Fraud. Priority options are: Low, Medium, High, and Critical.
+
+\section{Dashboard Design}
+
+The Streamlit dashboard consists of nine interactive pages accessed through Streamlit's native navigation system (\verb|st.navigation()|). Each page is implemented as a separate Python file in the \verb|pages/| directory.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|c|l|l|}
+\hline
+\textbf{\#} & \textbf{Page} & \textbf{Purpose} \\
+\hline
+1 & Overview Dashboard & KPI cards, trend charts, filters, top providers \\
+\hline
+2 & Claim Investigation & Search and inspect individual claims \\
+\hline
+3 & Beneficiary History & Longitudinal timeline and chronic conditions \\
+\hline
+4 & Provider Risk Analysis & ML risk score, SHAP, peer comparison \\
+\hline
+5 & Suspicious Claim Screening & Rule-based evidence per claim \\
+\hline
+6 & ML Model Performance & CV metrics, threshold slider, confusion matrix \\
+\hline
+7 & NFHS Medical Consistency & Clinical rule results and sample viewer \\
+\hline
+8 & Investigation Workspace & Case management with audit trail \\
+\hline
+9 & Data Explorer & Schema inspection, completeness, duplicates \\
+\hline
+\end{tabular}
+\caption{Dashboard Page Structure}
+\label{tab:pages}
+\end{table}
+
+\section{Security and Privacy Considerations}
+
+The following security and privacy measures are incorporated into the system design:
+
+\begin{enumerate}
+
+\item \textbf{Parameterised Queries:} All DuckDB queries use parameterised SQL (e.g., \verb|WHERE ClaimID = ?|) rather than string interpolation, preventing SQL injection attacks. The \verb|search_claims()| function in \verb|claims_repository.py| uses an explicit whitelist of allowed sort columns (\verb|allowed_sort_cols|).
+
+\item \textbf{Dataset Segregation:} NFHS-5 public health survey data and Medicare claims data are maintained in completely separate analytical modules. No record-level linkage between the two datasets exists within the system.
+
+\item \textbf{Decision-Support Framing:} The system is explicitly designed and documented as a decision-support tool. An elevated ML score or triggered screening flag does not constitute legal proof of fraud, an assertion of criminal liability, or grounds for automatic claim denial.
+
+\item \textbf{Transaction Safety:} The SQLite investigation workspace uses context-managed transactions (\verb|with conn:|) to ensure atomicity of multi-step case operations. Foreign key constraints (\verb|PRAGMA foreign_keys = ON|) maintain referential integrity.
+
+\item \textbf{Audit Trail:} All case status transitions are recorded in the \verb|audit_log| table with timestamps, old values, new values, and the identity of the performing investigator, supporting regulatory compliance and accountability.
+
+\item \textbf{Currency Transparency:} All monetary values are displayed with both the converted INR amount and the original source USD amount. The exchange rate is explicitly documented as an illustrative demonstration setting and can be overridden via an environment variable.
+
+\end{enumerate}

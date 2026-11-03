@@ -1,0 +1,56 @@
+\chapter{Literature Survey}
+
+% The paper \cite{b2} 
+“Deepfake Audio Detection via MFCC Features Using Machine Learning” \cite{b1}, proposed by Ameer Hamza \textit{et al.} employed machine learning (ML) and deep learning (DL) techniques, focusing on feature extraction using Mel-frequency cepstral coefficients (MFCC) from audio sources. Algorithms such as Support Vector Machines (SVM) and Gradient Boosting Models, specifically VGG-16, were applied, with VGG-16 outperforming other approaches. ASVspoof dataset was used for reducing Equal Error Rate (EER) in speech synthesis, addressing challenges like high false positive ratios. 
+The dataset, named Fake or Real Audio, containing human and synthetic speech samples, and features was not limited to MFCC but included spectral and raw signal features.\newline
+\newline
+The paper titled “Deepfake Audio Detection with Neural Networks using Audio Features” \cite{b2} by Abu Qais \textit{et al.} focused on Automatic Speaker Recognition (ASR), addressing challenges such as variations in pitch, speed, background noise, moods, and expressions in speech. Employing CNN algorithms with Mel Frequency Cepstral Coefficients (MFCC) to reduce model complexity, the approach incorporated concepts like spectral centroid, spectrogram, mel spectrogram, FFT, and STFT. ASVspoof 2017 was utilized for training and testing the system, with data split into an 80:20 ratio. The CNN model, using ReLu activation, proved most efficient when concatenating all audio features. However, the drawback was the dataset's age, which emphasized the need for updated datasets as spoofing technology evolves faster than detection technology.\newline
+\newline
+“Deepfake audio detection with vision transformer based method” \cite{b3} by Guzin Ulutas \textit{et al.} employed a Visual Transformer (ViT) architecture for audio forgery detection, utilizing Constant Q transform (CQT) spectrogram images with a resolution of 224x224 as input. Unlike Convolutional Neural Networks (CNN), ViT did not use convolution layers but processes image patches independently using Transformer Encoder. The model was trained on ASVspoof dataset containing Logical Access (LA) and Physical Access (PA) groups with original and forged audios created using text-to-speech (TTS), voice conversion (VC), and replay attacks. Post-training, the ViT-based system categorized suspicious audio as either forged or original, offering a unique approach to audio forgery detection.\newline
+\newline
+The paper “Deepfakes Audio Detection Techniques Using Deep Convolutional Neural Network” \cite{b4} proposed by Basant Kumar \textit{et al.} explored the topic of deepfake audio detection techniques using deep convolutional neural networks. The study's population, research design, and methodology were discussed, including the selection of datasets and algorithms used to test hypotheses. The findings of many experiments that were designed to assess the efficiency of the strategy, including the accuracy of the model were presented. The main goal of the technology was to analyse and detect voice analysis, determining if the voice was manufactured or real. The average score in CNN using the MLP model was 75.1\%. The usage of XCeption by CNN received a score of almost 90\%. \newline
+\newline
+The problems of detecting deepfake videos, which are manipulated videos that are used to spread misinformation and cause harm were explored in the paper titled “Joint Audio-Visual Deepfake Detection” \cite{b5} proposed by Yipin Zhou and Ser-Nam Lim. A joint audio-visual detection framework was introduced, utilizing the simultaneous nature of authentic video and human speech to detect alterations in one or both modalities. This framework functions in a multi-task environment, with distinct video and audio streams, each labeled separately and synchronized via a sync-stream. The study evaluated different attention mechanisms and discovered that cross-modality attention was more effective in learning synchronization patterns compared to self-attention. This framework surpassed the performance of models trained individually and holds promise for real-world applications in areas like media forensics and content moderation.\newline
+\newline
+The paper “Deepfake Audio Detection: A Deep Learning Based Solution for Group Conversations” \cite{b6} by R.L.M.A.P.C. Wijethunga \textit{et al.} presented a deep learning based solution for detecting synthetic speech and speaker diarization in group conversations. A conversational dataset from Opensubtitles, pre-processed and normalized to meet research criteria, was utilized. The dataset is divided into training and testing sets using the Apache Beam pipeline, and the TensorFlow framework is implemented with Python. The system can identify speakers through behavioral analysis, common word usage, and the names mentioned in the transcripts. The model's output showed a 94\% accuracy rate and a 0.691 loss value.\newline
+\newline
+The paper titled “Deepfake audio detection by speaker verification” \cite{b7} presented by Alessandro Pianese \textit{et al.} explained a detailed overview of the current research on deepfake audio detection by speaker verification. The increasing sophistication of synthetic voice generation and the potential threats posed by convincing fake audios were discussed. A solution that utilizes off-the-shelf speaker verification tools and test the approach on popular datasets, achieving better performance and high robustness to audio impairment was given. The impact of background noise on the performance of the proposed approach was also tested and suggestions about future research directions to improve the generalization ability of deepfake audio detection systems were given. \newline
+\newline
+“Unmasking the Truth: A Deep Learning Approach to Detecting Deepfake Audio through MFCC Features” \cite{b8} proposed by Islam Altalahin \textit{et al.} presented a research study on detecting deepfake audio using deeplearning approaches. ASVSpoof dataset and feature extracting techniques with three classifications were used to achieve promising results in identifying deepfake audio. The study shows that melted frequency cepstral coefficients (MFCCs) were effective in extracting useful information from sound to identify deepfake audio. The CNN-LSTM algorithm outperformed other deep learning algorithms in detection of deepfake audio, achieving an accuracy of 88\%.\newline
+\newline
+The paper “Deepfake Detection in Media Files - Audios, Images and Videos” \cite{b9} by Bismi Fathima Nasar \textit{et al.} provided a comprehensive review of deepfake audio detection techniques, focusing on the usage of deep learning methods such as CNN, GAN, LSTM, and hybrid approaches. The challenges faced in obtaining high-quality datasets for training and testing, as well as the limitations of existing detection techniques were discussed. The proposed system utilized a combinational approach involving image processing with CNN architecture to detect deepfakes in various media files, achieving an accuracy of approximately 0.9.\newline
+\newline
+% After reviewing the literature of various authors, we found a
+% need to develop an intelligent system which takes into
+% consideration different factors like question type, expected
+% answer, important keywords, synonyms, grammar, conceptual
+% knowledge for evaluating descriptive answers.
+% \newpage
+
+% \renewcommand{\arraystretch}{2}
+% \begin{table} 
+% \centering
+% \begin{tabular}{@{} | p{5cm}|p{5cm}|p{5cm}| @{}}
+% % \begin{tabular}{|m{1.5cm}|m{3.2cm}|m{3.8cm}|m{3cm}|m{3.5cm}|}
+% \hline
+%  \begin{center}\textbf{Title}\end{center} & \begin{center}\textbf{Methodologies Used}\end{center}&  \begin{center}\textbf{Analysis}\end{center} \\ \hline
+% An Examination System Automation Using Natural Language Processing [3] & By applying keyword matching, 0/1 vectors are formed for the answer and then vectors are compared by using cosine similarity.& As either 0 or 1 is assigned while comparing, there is no provision of partial keyword matching.  \\ \hline
+% Design and Development of a Framework for an Automatic Answer Evaluation System Based on Similarity Measures [4] & The vectors of answer are created like noun–verb, noun–verb–adjective–adverb, noun–verb synsets, noun–verb–adjective–adverb synsets based on TF/ IDF and then they are compared using cosine similarity. & The proposed approach focuses on language dependent features only. Hence, the approach may not work for language independent features like concepts, keywords, etc.  \\ \hline
+% An Automated Approach for Answer Script Evaluation Using Natural Language Processing [6] & Different similarity metrics namely cosine, Jaccard, bigram are applied and weighted average is considered as final score. & 
+% The weights are manually assigned according to the need.
+% \\ \hline
+% Grading Descriptive Answer Scripts Using Deep Learning [1]& The vectors are fed to LSTM RNN through which the dense layer predicts the one-hotted score. & 
+% The model is used only for a single question paper, so training the model for every question paper is infeasible.
+% \\ \hline
+% Using concept maps in knowledge assessment of short and open answer questions [8]& The short concept maps are used for assessing the student. Concept maps are then compared by Wu and Palmer similarity measure. & 
+% The concept map is taken as an input from teacher and student. It is not generated automatically.
+% \\ \hline
+% Automatic assessment of descriptive answers in online examination system using semantic relational features [12]& The question type is considered while evaluating an answer and then different similarity metrics are applied for comparison between answers. & 
+% Exactly how the question classification affects evaluation strategy is not explained in detail.
+% \\ \hline
+% \end{tabular}
+% \caption{Literature survey table}
+% \end{table}
+
+
+  

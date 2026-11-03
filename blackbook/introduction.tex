@@ -1,0 +1,45 @@
+\chapter{Introduction}
+
+Healthcare insurance fraud is a significant challenge for healthcare organizations and insurance providers, resulting in financial losses, inefficient utilization of healthcare resources, and increased operational burden. Fraudulent or suspicious claims may involve unusual billing patterns, excessive reimbursements, inconsistent medical information, or claims that do not align with the reported health conditions and treatments. With the increasing availability of large-scale healthcare datasets, Artificial Intelligence (AI) and Machine Learning (ML) techniques can be used to analyze healthcare data and identify patterns associated with potentially fraudulent activities.
+
+The proposed project, ``AI-Based Healthcare Claims Fraud Detection with Medical Validation and Explainable AI'', focuses on developing a data-driven framework for identifying suspicious healthcare patterns. The system consists of two complementary components. The first component uses NFHS-5 health survey data for medical validation by identifying clinically inconsistent combinations of reported conditions, treatment, medication, and glucose measurements. These inconsistencies are treated as indicators for further review rather than confirmed cases of fraud. The second component uses Medicare healthcare claims data for provider-level potential fraud detection. Provider-level statistical features such as total claims, total reimbursement, average reimbursement, number of unique patients, and inpatient and outpatient claim characteristics are extracted from the claims data and used for machine learning-based classification.
+
+Several supervised machine learning techniques, including Random Forest, Logistic Regression, and XGBoost, are used to analyze provider-level claims data. The models are evaluated using performance measures such as accuracy, precision, recall, F1-score, ROC-AUC, and Average Precision. Since fraud detection is a sensitive application where model decisions need to be interpretable, Explainable AI techniques are incorporated using SHAP (SHapley Additive exPlanations). SHAP helps analyze the contribution of individual features to model predictions and provides greater transparency into the factors influencing potentially fraudulent provider classifications.
+
+The combination of medical validation, machine learning-based claims analysis, and explainable predictions provides a structured framework for supporting healthcare fraud investigation. The objective is not to automatically declare a claim or provider as fraudulent, but to identify suspicious patterns and prioritize cases that may require further examination by domain experts or investigators.
+
+\section{Objectives}
+
+The key objectives of the proposed healthcare claims fraud detection system are as follows:
+
+\begin{itemize}
+
+\item To identify clinically inconsistent healthcare patterns from NFHS-5 data using rule-based medical validation.
+
+\item To develop a machine learning-based approach for identifying potentially fraudulent healthcare providers using Medicare claims data.
+
+\item To extract meaningful provider-level features from healthcare claims, reimbursement, inpatient, outpatient, and patient-related information.
+
+\item To compare the performance of different machine learning models, including Random Forest, Logistic Regression, and XGBoost, using appropriate evaluation metrics.
+
+\item To analyze the trade-off between precision and recall and study the effect of different classification thresholds on fraud detection performance.
+
+\item To incorporate Explainable AI using SHAP to understand the contribution of different features to model predictions.
+
+\item To provide an interpretable decision-support framework that can assist investigators in prioritizing suspicious cases for further review.
+
+\end{itemize}
+
+\section{Layout of the Report}
+
+A brief overview of each chapter is provided here.
+
+\textbf{Chapter 2: Literature Review} presents a review of existing research and approaches related to healthcare insurance fraud detection, machine learning-based fraud detection, medical validation, and Explainable AI.
+
+\textbf{Chapter 3: System Design and Methodology} explains the proposed system architecture, datasets, data preprocessing, feature engineering, medical validation rules, machine learning models, evaluation methodology, and SHAP-based explainability.
+
+\textbf{Chapter 4: Results and Model Evaluation} presents the experimental results obtained from NFHS-5 medical validation and Medicare provider-level fraud detection. The performance of the machine learning models is evaluated using appropriate classification metrics and visualizations.
+
+\textbf{Chapter 5: Conclusion and Future Work} summarizes the work carried out, discusses the key findings and limitations, and presents possible directions for future improvement.
+
+\textbf{Chapter 6: Research Paper} presents the research paper developed based on the proposed healthcare claims fraud detection framework.
