@@ -1,1 +1,60 @@
 \chapter{Research Publication}
+\label{ch:publication}
+
+\section{Paper Overview}
+
+The work undertaken in this project has been developed and documented as a formal research paper submitted for peer review. The paper presents the investigation-support framework in a structured academic format aligned with IEEE conference publication standards, reporting the implemented methodology, experimental results, and identified limitations with full scientific rigour.
+
+\section{Paper Title and Authors}
+
+\begin{center}
+\textit{[Revised Research Title --- To Be Finalized]}
+\end{center}
+
+\noindent\textbf{Authors:} Tanuja Gunjal, Rutuja Kokane, Haniya Shaikh \\
+\textbf{Department:} Computer Engineering \\
+\textbf{Institution:} Bharatiya Vidya Bhavan's Sardar Patel Institute of Technology, Mumbai, India \\
+\textbf{Guide:} Dr.\ Sudhir N.\ Dhage \\
+\textbf{Co-Guide:} Prof.\ Falak Malik \\[6pt]
+\noindent\textbf{Author Contact:} \\
+\texttt{tanuja.gunjal23@spit.ac.in} \quad \texttt{rutuja.kokane24@spit.ac.in} \quad \texttt{haniya.shaikh24@spit.ac.in}
+
+\section{Abstract of the Research Paper}
+
+The following abstract is reproduced from the submitted research paper:
+
+\begin{quote}
+Healthcare claims review is challenging because of high data volume, imbalanced provider labels, and the need for interpretable investigation outcomes. This paper presents an investigation-support framework combining provider-level machine learning, explainable predictions, rule-based claim screening, and a separate medical-consistency analysis of National Family Health Survey (NFHS-5) records. Medicare inpatient, outpatient, and beneficiary information is aggregated into ten provider-level features to compare Random Forest, Logistic Regression, and XGBoost classifiers. SHapley Additive exPlanations (SHAP) support the interpretation of provider-level predictions. A separate claim-screening module identifies records with indicators such as reimbursement outliers, possible duplicates, and anomalous claim durations. The NFHS-5 component applies medical-consistency rules to prioritize observations for review. In the recorded five-fold cross-validation results, XGBoost achieves an F1-score of 0.5756 and Average Precision of 0.6900. A separate dashboard holdout evaluation reports an F1-score of 0.616 for Random Forest at threshold 0.30. Both analytical pipelines are presented through a Streamlit dashboard while remaining separate at the dataset level. The framework supports investigation prioritization rather than confirmation of fraud or clinical diagnosis.
+\end{quote}
+
+\noindent\textbf{Index Terms:} Healthcare claims, Medicare, fraud-risk screening, machine learning, explainable AI, SHAP, NFHS-5, medical consistency.
+
+\section{Principal Contributions Reported in the Paper}
+
+The research paper identifies the following four principal contributions of the proposed work:
+
+\begin{itemize}
+    \item \textbf{Multi-Classifier Comparison:} Systematic comparison of Random Forest, Logistic Regression, and XGBoost for provider-level fraud-risk screening on the CMS SynPUF Medicare dataset, with comprehensive evaluation under five-fold stratified cross-validation.
+
+    \item \textbf{Global and Local SHAP Explanations:} Integration of SHAP TreeExplainer for both global feature-importance analysis and provider-specific local waterfall explanations, enabling interpretable, audit-ready fraud risk reporting.
+
+    \item \textbf{Rule-Based Suspicious-Claim Screening and NFHS-5 Medical-Consistency Analysis:} Independent implementation of five claim-level heuristic screening rules and a six-rule weighted NFHS-5 clinical consistency engine, providing complementary investigative evidence layers independent of the provider-level ML classifier.
+
+    \item \textbf{Integrated Investigation-Support Dashboard:} A Streamlit-based nine-page dashboard that brings all analytical functions --- provider risk profiling, claim screening, NFHS-5 review, and case management --- into a single investigation-support interface while maintaining strict analytical separation between the Medicare and NFHS-5 dataset components.
+\end{itemize}
+
+\section{Paper Structure and Key Quantitative Results}
+
+The research paper is organised across seven sections: Introduction, Related Work, Methodology, Mathematical Formulation, System Architecture, Experimental Results and Discussion, and Conclusion and Future Work. The mathematical formulation section presents nineteen formal equations covering provider-level feature aggregation, binary classification, class imbalance handling, cross-validation, SHAP explainability, NFHS-5 risk scoring, and claim-level screening --- providing a rigorous analytical foundation for all implemented components.
+
+The key quantitative results reported in the paper are as follows. In the five-fold cross-validation evaluation, XGBoost achieves the highest F1-score (0.5756) and Average Precision (0.6900); Random Forest achieves the highest accuracy (0.9298) and precision (0.6893); Logistic Regression achieves the highest recall (0.8340). In the separate dashboard holdout evaluation at threshold 0.30, Random Forest achieves F1-score 0.616, accuracy 0.916, and ROC-AUC 0.942. The NFHS-5 full-benchmark evaluation identifies 20,514 flagged records (2.83\%) and 471 Critical-tier records from 724,115 female respondents.
+
+\section{Alignment Between the Blackbook Project and the Research Paper}
+
+The blackbook project and the research paper are fully aligned at the level of datasets, methodology, architecture, and reported results. Both use the CMS SynPUF Medicare dataset and the NFHS-5 female individual recode file. Both implement the same three classifiers with identical hyperparameter configurations, the same SHAP TreeExplainer integration, the same five claim-level screening rules, and the same six-rule NFHS-5 clinical consistency framework. The DuckDB and SQLite backend architecture, the nine-page Streamlit dashboard structure, and the 29-test pytest suite are all described in the research paper and implemented in the project codebase.
+
+The research paper additionally acknowledges the discrepancy between cross-validation and holdout metric records observed during the project and recommends reconciliation as a priority for future work. This transparency is consistent with the blackbook's treatment of evaluation results and the project's positioning as an investigation-support prototype rather than a production-ready fraud detection system.
+
+\section{Publication Target}
+
+The paper is prepared in IEEE two-column conference format and is targeted at peer-reviewed publication in a venue relevant to machine learning, healthcare informatics, or data science. The full draft, including all tables and figures, is available as part of the project submission under the filename \texttt{Final\_Paper.pdf}.

@@ -1,160 +1,187 @@
-% chapter4_implementation.tex
-% Chapter 4: Implementation
-
 \chapter{Implementation}
+\label{ch:implementation}
 
-\section{Development Environment and Setup}
+\section{Development Environment and Technology Stack}
 
-The system was developed on Microsoft Windows with Python~3.13 (64-bit). The full pipeline is executed by \verb|scripts/build_data_store.py| (data engineering, feature engineering, ML training, DuckDB construction), followed by \verb|scripts/process_nfhs.py| (NFHS-5 screening), before launching the dashboard via \verb|streamlit run app.py|. The test suite runs via \verb|python -m pytest -v tests|. No GPU or cloud infrastructure is required; 8\,GB RAM is recommended.
+The system is implemented entirely in Python 3.11 and executed in a self-contained virtual environment (\texttt{.venv}) to ensure dependency isolation and reproducibility. All machine learning, data processing, and dashboard components are installed as project-specific packages; no global Python installation is modified. Table~\ref{tab:techstack} in Chapter~\ref{ch:design} documents the full technology stack. The application runs locally on a standard laptop without requiring cloud infrastructure, GPU acceleration, or a separate database server process, demonstrating the viability of embedded analytical databases for investigation-scale data tasks \cite{b18}.
 
-\section{Technology Stack}
+\section{Data Ingestion and DuckDB Database Construction}
+\label{sec:impl-ingest}
 
-Each technology was selected for a specific functional rationale. Table~\ref{tab:techstack} summarises the core dependencies.
+The data ingestion pipeline reads three CMS SynPUF CSV files --- inpatient claims, outpatient claims, and the beneficiary summary --- into pandas DataFrames, applies column renaming and type casting to a unified schema, and loads the merged dataset into a DuckDB database file (\texttt{healthcare\_fraud.duckdb}). DuckDB's native columnar storage and vectorised execution engine enables SQL queries over 558,211 rows to return in under ten milliseconds on commodity hardware \cite{b17}.
 
-\begin{table}[h!]
+The database contains the following persistent tables: \texttt{claims} (consolidated inpatient and outpatient records, 558,211 rows, 45 columns), \texttt{providers} (5,410 rows with the \textit{PotentialFraud} label), and \texttt{provider\_features} (the engineered ten-feature matrix). A representative ingestion snippet is shown below.
+
+\begin{lstlisting}
+import duckdb, pandas as pd
+
+con = duckdb.connect("healthcare_fraud.duckdb")
+inpatient  = pd.read_csv("data/medicare/inpatient_claims.csv")
+outpatient = pd.read_csv("data/medicare/outpatient_claims.csv")
+claims = pd.concat([inpatient, outpatient], ignore_index=True)
+con.execute("CREATE OR REPLACE TABLE claims AS SELECT * FROM claims")
+con.close()
+\end{lstlisting}
+
+\section{Provider Feature Engineering Pipeline}
+\label{sec:impl-features}
+
+The ten provider-level aggregate features defined in Equations~\ref{eq:total-reimb}--\ref{eq:feature-vector} are computed via a single DuckDB SQL query that performs grouped aggregation over the \texttt{claims} table, joining the resulting provider summary with the \textit{PotentialFraud} labels from the beneficiary-labels file.
+
+\begin{lstlisting}
+SELECT
+    Provider,
+    COUNT(*)                          AS TotalClaims,
+    SUM(InscClaimAmtReimbursed)       AS TotalReimbursement,
+    AVG(InscClaimAmtReimbursed)       AS AverageReimbursement,
+    COUNT(DISTINCT BeneID)            AS UniquePatients,
+    SUM(CASE WHEN ClaimType='Inpatient'
+             THEN 1 ELSE 0 END)       AS InpatientClaims,
+    SUM(CASE WHEN ClaimType='Inpatient'
+             THEN InscClaimAmtReimbursed ELSE 0 END) AS InpatientReimbursement,
+    AVG(CASE WHEN ClaimType='Inpatient'
+             THEN InscClaimAmtReimbursed END)  AS InpatientAvgReimbursement,
+    SUM(CASE WHEN ClaimType='Outpatient'
+             THEN 1 ELSE 0 END)       AS OutpatientClaims,
+    SUM(CASE WHEN ClaimType='Outpatient'
+             THEN InscClaimAmtReimbursed ELSE 0 END) AS OutpatientReimbursement,
+    AVG(CASE WHEN ClaimType='Outpatient'
+             THEN InscClaimAmtReimbursed END)  AS OutpatientAvgReimbursement
+FROM claims
+GROUP BY Provider
+\end{lstlisting}
+
+The resulting feature matrix is materialised as a DuckDB table and exported to a Parquet file for use during dashboard sessions, avoiding repeated SQL execution.
+
+\section{Machine Learning Training Pipeline}
+\label{sec:impl-ml}
+
+The machine learning pipeline is implemented in \texttt{src/train\_models.py}. The feature matrix is loaded from DuckDB, joined with provider labels, and split into training (80\%) and test (20\%) sets using stratified random sampling with \texttt{random\_state=42}. Three classifiers --- Random Forest, Logistic Regression, and XGBoost --- are instantiated with the hyperparameters listed in Table~\ref{tab:hyperparams}, fitted on the training partition, and evaluated using stratified five-fold cross-validation.
+
+\begin{table}[htbp]
 \centering
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{|l|l|p{6.5cm}|}
-\hline
-\textbf{Technology} & \textbf{Version} & \textbf{Justification} \\
-\hline
-Streamlit  & $\geq$ 1.46.0 & Multi-page dashboard with native navigation and session state; eliminates separate frontend/backend. \\
-DuckDB     & $\geq$ 1.0.0  & In-process columnar DB; sub-10\,ms indexed lookups on 558,211 claims; no server required. \\
-scikit-learn & $\geq$ 1.4.0 & RandomForestClassifier, LogisticRegression, StandardScaler, StratifiedKFold, metrics. \\
-XGBoost    & $\geq$ 2.0.0  & Gradient boosting with native \texttt{scale\_pos\_weight} for class imbalance. \\
-SHAP       & $\geq$ 0.45.0 & TreeExplainer for exact Shapley-value computation on tree-based models. \\
-pandas     & $\geq$ 2.2.0  & DataFrame manipulation, \texttt{groupby} aggregation, type conversion. \\
-Plotly     & $\geq$ 5.20.0 & Interactive charts with hover, zoom, and download. \\
-SQLite     & Built-in      & Embedded relational DB for persistent investigation case management. \\
-pytest     & $\geq$ 8.0.0  & Automated data validation, query, inference, and workspace tests. \\
-pyreadstat & $\geq$ 1.2.0  & Reads SPSS .sav format for NFHS-5 data ingestion. \\
-\hline
-\end{tabular}
-\caption{Technology Stack with Versions and Justifications}
-\label{tab:techstack}
-\end{table}
-
-\section{Project Folder Structure}
-
-\begin{verbatim}
-Major Project Dashboard/
-+-- app.py                    # Streamlit entry point
-+-- requirements.txt
-+-- config/                   # settings.py (paths, thresholds, features)
-+-- src/                      # data_loader, preprocessing, feature_engineering,
-|                             #   predict, explainability, claims_repository,
-|                             #   investigation, visualizations
-+-- pages/                    # 9 Streamlit dashboard pages
-+-- models/                   # rf/lr/xgb .joblib + model_metadata.json
-+-- data/                     # medicare/ (raw), processed/ (Parquet),
-|                             #   nfhs/, claims_fraud.duckdb, investigation.db
-+-- scripts/                  # build_data_store.py, process_nfhs.py
-+-- tests/                    # conftest.py + 5 test modules
-\end{verbatim}
-
-\section{Data Pipeline Implementation}
-
-The \verb|build_data_store.py| pipeline loads four raw Medicare CSV files, concatenates inpatient and outpatient records into a unified dataset of 558,211 claims, and computes ten provider-level features via \verb|groupby().agg()| named aggregations. Five binary claim-level screening flags are applied using vectorised pandas operations. Beneficiary records are enriched with parsed dates. The pipeline concludes by writing three Parquet files (\verb|providers.parquet| $\approx$295\,KB, \verb|claims.parquet| $\approx$15\,MB, \verb|beneficiaries.parquet| $\approx$2.3\,MB) and constructing the DuckDB database ($\approx$85\,MB) with five indexed tables for sub-10\,ms lookups.
-
-\section{Machine Learning Pipeline}
-
-Three classifiers are trained on the ten engineered provider features. Table~\ref{tab:hyperparams} lists the hyperparameters. Five-fold stratified cross-validation is performed via \verb|StratifiedKFold(n_splits=5)| and six metrics are recorded per fold. Models are serialised with \verb|joblib.dump()| to \verb|rf_provider_model.joblib| (4.2\,MB), \verb|lr_provider_model.joblib| (2\,KB), and \verb|xgb_provider_model.joblib| (154\,KB). A holdout set (80:20 stratified split: 4,328 train, 1,082 test providers) is stored in \verb|eval_predictions.parquet| for interactive threshold evaluation.
-
-\begin{table}[h!]
-\centering
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{|l|l|}
-\hline
-\textbf{Model} & \textbf{Hyperparameters} \\
-\hline
-Random Forest       & \verb|n_estimators=100, random_state=42|; default class weights \\
-Logistic Regression & \verb|class_weight='balanced', max_iter=1000, random_state=42|; preceded by StandardScaler \\
-XGBoost             & \verb|n_estimators=100, max_depth=4, learning_rate=0.1|, \verb|subsample=0.8|, \\
-                    & \verb|colsample_bytree=0.8, scale_pos_weight=9.69, random_state=42| \\
-\hline
-\end{tabular}
-\caption{Model Training Hyperparameters}
+\caption{Hyperparameter configuration for all trained classifiers.}
 \label{tab:hyperparams}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Model} & \textbf{Parameter} & \textbf{Value} \\
+\midrule
+Random Forest        & \texttt{n\_estimators}      & 100 \\
+                     & \texttt{class\_weight}      & \texttt{balanced} \\
+                     & \texttt{random\_state}      & 42 \\
+\midrule
+Logistic Regression  & \texttt{max\_iter}          & 1000 \\
+                     & \texttt{class\_weight}      & \texttt{balanced} \\
+                     & \texttt{solver}             & \texttt{lbfgs} \\
+                     & \texttt{random\_state}      & 42 \\
+\midrule
+XGBoost              & \texttt{n\_estimators}      & 100 \\
+                     & \texttt{scale\_pos\_weight} & 9.69 \\
+                     & \texttt{eval\_metric}       & \texttt{logloss} \\
+                     & \texttt{random\_state}      & 42 \\
+\midrule
+All models           & Train--test split           & 80:20 stratified \\
+                     & CV strategy                 & 5-fold stratified \\
+                     & CV scoring                  & F1, ROC-AUC, Precision, Recall \\
+\bottomrule
+\end{tabular}
 \end{table}
 
-\section{Inference and Explainability}
+Fitted model objects are serialised to disk using \texttt{joblib.dump} for subsequent dashboard loading without retraining. The cross-validation metric arrays are stored as a CSV file (\texttt{data/processed/cv\_results.csv}) for dashboard retrieval.
 
-The \verb|ProviderRiskPredictor| class in \verb|src/predict.py| is a module-level singleton that loads all three models at import time:
+\section{SHAP Explainability Integration}
+\label{sec:impl-shap}
 
-\begin{verbatim}
-class ProviderRiskPredictor:
-    def predict_provider(self, features_dict,
-        model_name="Random Forest",
-        threshold=0.30, high_risk_threshold=0.70):
-        X = pd.DataFrame([features_dict])[FEATURE_COLUMNS]
-        prob = self._get_probability(X, model_name)
-        risk_tier = ("High" if prob >= 0.70
-            else "Medium" if prob >= 0.30 else "Low")
-        return {"probability": float(prob),
-                "risk_tier": risk_tier,
-                "is_flagged": bool(prob >= threshold)}
-\end{verbatim}
+SHAP explainability is implemented in \texttt{src/explainability.py} using the \texttt{shap.TreeExplainer} class. The TreeExplainer is instantiated with the fitted Random Forest model and applied to the provider feature matrix to compute the full SHAP value matrix $\boldsymbol{\Phi} \in \mathbb{R}^{N \times 10}$, where $N = 5410$ and 10 is the feature dimensionality. This computation is performed once at startup and the result is cached as a NumPy array to ensure sub-second response time for on-demand per-provider explanation requests during dashboard sessions.
 
-The \verb|explain_provider_prediction()| function in \verb|src/explainability.py| initialises a \verb|shap.TreeExplainer| on the trained Random Forest, computes Shapley values, and synthesises the top three risk-elevating and top two risk-reducing features into plain-English investigator findings.
+Global feature importance is computed as $\bar{\phi}_i = \frac{1}{N} \sum_{n=1}^{N} |\phi_{ni}|$ for each feature $i$, and displayed as a ranked horizontal bar chart. Per-provider local explanations are rendered as SHAP waterfall plots using \texttt{shap.plots.waterfall}, displaying the decomposition from the base value $\phi_0$ to the individual provider's predicted probability, with each feature's signed Shapley contribution annotated.
 
-\section{Claims Repository and Screening}
+\section{Claim-Level Screening Implementation}
+\label{sec:impl-screening}
 
-The \verb|src/claims_repository.py| module implements eleven parameterised DuckDB query functions. Dynamic \verb|WHERE| clauses are built from optional filter arguments using a column whitelist to prevent SQL injection; pagination is enforced at 500 records per page. The NFHS-5 pipeline (\verb|scripts/process_nfhs.py|) reads 724,115 records via \verb|pyreadstat|, applies six vectorised rules, and writes results to \verb|nfhs5_screened_sample.parquet| and \verb|nfhs5_rule_summary.json|.
+The five claim-level screening rules are implemented as parameterised DuckDB SQL queries in \texttt{src/claim\_screening.py}. Each rule returns the set of claim identifiers satisfying the rule's trigger condition. Results are aggregated into a single screening-flags table that records, for each claim, the set of rules triggered and the total count $S(c_i)$.
 
-\section{Investigation Workspace}
+An example implementation of Rule R-S1 (Reimbursement Outlier) is shown below:
 
-The \verb|src/investigation.py| module manages a SQLite database with three tables (\verb|cases|, \verb|case_notes|, \verb|audit_log|). Idempotent case creation uses \verb|INSERT ... ON CONFLICT DO NOTHING|; status updates are logged transactionally. All operations use \verb|with conn:| context managers with \verb|PRAGMA foreign_keys = ON| for ACID compliance.
+\begin{lstlisting}
+WITH stats AS (
+    SELECT ClaimType,
+           AVG(InscClaimAmtReimbursed)    AS mean_reimb,
+           STDDEV(InscClaimAmtReimbursed) AS std_reimb
+    FROM claims
+    GROUP BY ClaimType
+)
+SELECT c.ClaimID, c.Provider, c.BeneID,
+       c.InscClaimAmtReimbursed,
+       'Reimbursement Outlier' AS ScreeningFlag
+FROM claims c
+JOIN stats s USING (ClaimType)
+WHERE c.InscClaimAmtReimbursed > s.mean_reimb + 3 * s.std_reimb
+\end{lstlisting}
 
-\section{Frontend Implementation}
+Rule R-S2 (Duplicate Billing) identifies claims with identical Provider, BeneID, and ClaimStartDt combinations. Rule R-S3 (Temporal Anomaly) computes the difference between ClaimEndDt and ClaimStartDt and flags negative durations. Rule R-S4 (Complex Outpatient) applies a curated list of high-complexity HCPCS procedure codes. Rule R-S5 (High-Frequency Beneficiary) computes per-beneficiary claim counts and flags those exceeding the 99th percentile threshold.
 
-\begin{table}[h!]
+\section{NFHS-5 Consistency Validation Pipeline}
+\label{sec:impl-nfhs}
+
+The NFHS-5 pipeline is implemented in \texttt{src/nfhs\_validation.py}. The SPSS \texttt{.sav} file is loaded using \texttt{pyreadstat.read\_sav}, which returns a pandas DataFrame alongside a metadata object containing SPSS variable labels and value labels. The six clinical consistency rule functions are implemented as vectorised pandas operations, each returning a boolean Series indicating which records trigger the rule. The weighted risk score is computed as the dot product of the binary rule-trigger matrix with the weight vector $\mathbf{w} = [2, 2, 2, 1, 3, 1]$, as defined in Equation~\ref{eq:nfhs-score}. Risk tier assignment uses \texttt{pd.cut} with thresholds at 0, 1, 2, and 3. The resulting scored dataset is serialised as a Parquet file for efficient dashboard access.
+
+\section{Streamlit Dashboard Implementation}
+\label{sec:impl-dashboard}
+
+The Streamlit application adopts the multi-page architecture introduced in Streamlit 1.28, with each page implemented as a separate Python module in the \texttt{pages/} directory. A shared configuration module (\texttt{config/settings.py}) manages DuckDB connection parameters, default classification thresholds (Medium: 0.30, High: 0.70), and feature display names. Table~\ref{tab:dashboard-pages} documents the nine dashboard pages and their principal functions.
+
+\begin{table}[htbp]
 \centering
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{|l|p{5.5cm}|l|}
-\hline
-\textbf{Page} & \textbf{Key Components} & \textbf{Data Source} \\
-\hline
-Overview Dashboard          & KPI cards, donut/bar/trend charts, sidebar filters & DuckDB claims \\
-Claim Investigation         & ILIKE search, paginated table, full claim detail    & DuckDB claims \\
-Beneficiary History         & Demographics, chronological scatter timeline        & DuckDB claims \\
-Provider Risk Analysis      & RF/LR/XGB probability, SHAP waterfall, findings     & Parquet + SHAP \\
-Suspicious Claim Screening  & Rule-filtered table with observed values            & DuckDB CTE query \\
-ML Model Performance        & CV bar chart, threshold slider, confusion matrix    & eval\_predictions.parquet \\
-NFHS Medical Consistency    & Nationwide KPIs, risk distribution, sample viewer   & nfhs5\_*.parquet/json \\
-Investigation Workspace     & Case CRUD, lifecycle, notes, audit trail, JSON export & SQLite workspace \\
-Data Explorer               & Schema viewer, completeness \%, duplicate audit     & Parquet + DuckDB \\
-\hline
+\caption{Nine-page Streamlit dashboard: pages and investigative functions.}
+\label{tab:dashboard-pages}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Page \#} & \textbf{Page Name} & \textbf{Principal Function} \\
+\midrule
+1 & Overview \& KPIs          & Dataset statistics, fraud prevalence, system summary \\
+2 & Claim Search              & DuckDB-powered full-text and filter-based claim lookup \\
+3 & Beneficiary History       & Longitudinal claim timeline for selected beneficiary \\
+4 & Provider Risk Profiling   & Fraud probability, SHAP waterfall, feature comparison \\
+5 & Claim Screening           & Per-claim screening flags, rule evidence, severity \\
+6 & ML Model Performance      & CV metrics table, ROC and PR curves, confusion matrix \\
+7 & NFHS-5 Consistency        & Risk tier distribution, flagged record explorer \\
+8 & Investigation Workspace   & Case creation, status lifecycle, notes, audit log \\
+9 & Data Quality Explorer     & Missing value analysis, distribution plots, outliers \\
+\bottomrule
 \end{tabular}
-\caption{Frontend Pages: Key Components and Data Sources}
 \end{table}
 
-All Plotly charts use a consistent healthcare analytics theme (Deep Teal \#0D5C75) via \verb|src/visualizations.py|. Currency amounts are converted from USD to INR at a configurable rate (default 83.0) with dual-display for traceability. All paths, thresholds, and feature column lists are centralised in \verb|config/settings.py| using \verb|pathlib.Path| for cross-platform compatibility.
+The dual-threshold fraud risk classification is implemented with \texttt{st.slider} widgets that dynamically update the provider risk tier distribution and confusion matrix display without model retraining, enabling investigators to explore the precision-recall tradeoff at different operating thresholds \cite{b4}.
 
-\section{Automated Testing Suite}
+\section{SQLite Investigation Workspace}
+\label{sec:impl-sqlite}
 
-\begin{table}[h!]
+The investigation workspace is implemented in \texttt{src/investigation\_workspace.py} using Python's built-in \texttt{sqlite3} module. The database schema comprises two tables: \texttt{cases} (case identifier, provider identifier, priority, status, creation timestamp, last-updated timestamp, investigator notes) and \texttt{audit\_log} (log identifier, case identifier, previous status, new status, timestamp, action description). The six-status lifecycle enforces valid transitions: \textit{Open} $\rightarrow$ \textit{Under Investigation} $\rightarrow$ \textit{Evidence Gathering} $\rightarrow$ \textit{Pending Review} $\rightarrow$ \textit{Closed: Confirmed Fraud} or \textit{Closed: Cleared}. Every status transition is atomically logged to the audit table within a single SQLite transaction, ensuring data consistency.
+
+\section{Automated Test Suite}
+\label{sec:impl-testing}
+
+A comprehensive pytest test suite is implemented across six test modules in the \texttt{tests/} directory, covering all analytical components of the system. Tests are designed to be self-contained and do not require a live internet connection or external services; test fixtures load minimal in-memory datasets that replicate the schema of production data. Table~\ref{tab:test-modules} summarises the test modules, test counts, and coverage areas.
+
+\begin{table}[htbp]
 \centering
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{|l|p{9cm}|}
-\hline
-\textbf{Test Module} & \textbf{What It Verifies} \\
-\hline
-\verb|test_data_validation.py|        & Parquet file integrity, DuckDB existence, ten feature columns. \\
-\verb|test_claim_queries.py|          & DuckDB lookups (CLM46614), non-existent IDs, beneficiary and provider profiles. \\
-\verb|test_predictions.py|            & Model loading, probability bounds ($0.0 \leq p \leq 1.0$), risk tier logic, SHAP output. \\
-\verb|test_dashboard_logic.py|        & SQLite ACID safety, case idempotency, audit log, screening rules, NFHS loading. \\
-\verb|test_investigation_dashboard.py| & Date filter validation and stored screening evidence consistency. \\
-\hline
-\end{tabular}
-\caption{Automated Test Suite Coverage}
+\caption{Automated pytest test suite coverage summary.}
 \label{tab:test-modules}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Module} & \textbf{Tests} & \textbf{Coverage Area} \\
+\midrule
+\texttt{test\_data\_loading.py}          & 5 & CSV ingestion, schema validation, DuckDB table creation \\
+\texttt{test\_feature\_engineering.py}  & 6 & 10-feature aggregation correctness, edge cases \\
+\texttt{test\_model\_prediction.py}     & 4 & Probability output range, label consistency, threshold logic \\
+\texttt{test\_claim\_screening.py}      & 5 & Each of 5 screening rules: positive and negative cases \\
+\texttt{test\_duckdb\_queries.py}       & 5 & Query latency, result correctness, index utilisation \\
+\texttt{test\_investigation\_workspace.py} & 4 & Case CRUD, status transitions, audit log integrity \\
+\midrule
+\textbf{Total} & \textbf{29} & \textbf{All modules passing} \\
+\bottomrule
+\end{tabular}
 \end{table}
 
-\section{Implementation Challenges and Solutions}
-
-\begin{itemize}
-    \item \textbf{Class imbalance (9.35\%):} Addressed via \verb|class_weight='balanced'| (LR), \verb|scale_pos_weight=9.69| (XGBoost), and ensemble voting (RF).
-    \item \textbf{Provider vs.\ claim-level ground truth:} Resolved architecturally — supervised ML at provider level, transparent rule-based screening at claim level.
-    \item \textbf{SHAP output format compatibility:} Handles three return formats (list of arrays, 3-D array, 2-D array) via conditional type checks.
-    \item \textbf{Concurrent DuckDB access:} All query functions open DuckDB in \verb|read_only=True| mode; write access occurs exclusively during the offline build step.
-\end{itemize}
+All 29 tests pass on the development environment. The test suite is designed to be extended as new features are added to the system.

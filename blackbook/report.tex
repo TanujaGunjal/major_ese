@@ -18,7 +18,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 
-%------ TikZ Packages (required for Chapter 3 diagrams) ------
+%------ TikZ Packages (kept for compatibility) ------
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, calc}
 
@@ -27,11 +27,27 @@
 \usepackage{multirow}
 \usepackage{array}
 
+%------ Code Listings ------
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=flexible,
+  keepspaces=true,
+  showstringspaces=false,
+  frame=single,
+  xleftmargin=2pt,
+  xrightmargin=2pt
+}
+
 %------ Miscellaneous ------
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
+\usepackage[utf8]{inputenc}
 
-\bibliographystyle{plain}
+% Define abstract environment (not provided by report class)
+\newenvironment{abstract}{\chapter*{Abstract}\addcontentsline{toc}{chapter}{Abstract}}{}
 
 \begin{document}
 \input{be_title.tex}
@@ -40,8 +56,8 @@
 \input{sponsorship_letter.tex}
 \input{students_statement.tex}
 \input{acknowledgments.tex}
-\tableofcontents
 \pagenumbering{roman}
+\tableofcontents
 \pagebreak
 \listoffigures
 \pagebreak

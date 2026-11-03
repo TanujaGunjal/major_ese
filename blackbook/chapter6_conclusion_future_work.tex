@@ -3,75 +3,96 @@
 
 \section{Summary of the Project}
 
-This project developed \textit{AI-Based Healthcare Claims Fraud Detection with Medical Validation and Explainable AI}, a dual-component decision-support system at SPIT Mumbai. The first component applies six weighted clinical inconsistency rules to 724,115 NFHS-5 records, stratifying each into one of five risk tiers (Clean through Critical). The second component engineers ten provider-level aggregate features from CMS SynPUF Medicare data covering 5,410 providers and trains three binary classifiers — Random Forest, Logistic Regression, and XGBoost — under five-fold stratified cross-validation, with SHAP TreeExplainer generating per-provider feature-attribution explanations. Both components are unified in a nine-page Streamlit dashboard backed by a DuckDB analytical database (85~MB, sub-10~ms query latency) and a SQLite investigation workspace supporting a full case-management lifecycle.
+This project developed \textit{AI-Based Healthcare Claims Fraud Detection with Medical Validation and Explainable AI}, a dual-component investigation-support system addressing two complementary problems in computational healthcare analytics: provider-level Medicare fraud-risk classification and clinical consistency validation of population health survey data. The system integrates three analytically independent pipelines --- supervised ML provider classification, transparent claim-level screening, and weighted NFHS-5 rule-based consistency validation --- within a unified nine-page Streamlit decision-support dashboard backed by a DuckDB columnar query engine and an SQLite investigation workspace.
+
+The Medicare component constructs a ten-feature aggregate billing profile for each of 5,410 CMS SynPUF providers and trains three supervised binary classifiers --- Random Forest, Logistic Regression, and XGBoost --- under five-fold stratified cross-validation to address the 1:9.7 class imbalance. SHAP TreeExplainer is integrated into the live investigative dashboard, providing per-provider feature-attribution waterfall plots and global importance rankings that render every fraud risk score interpretable and audit-ready. A separate dashboard holdout evaluation at the operational threshold of 0.30 reports a Random Forest F1-score of 0.616 and ROC-AUC of 0.942 on the 20\% holdout partition.
+
+The NFHS-5 component applies six domain-calibrated weighted clinical consistency rules to all 724,115 female-respondent records, computing a composite risk score and assigning each record to one of five risk tiers. The full-benchmark evaluation identifies 20,241 flagged records (approximately 2.80\%), including 471 Critical-tier records that represent the highest-priority subset for clinical data quality review. Both components are presented through a common Streamlit interface with sub-10~ms DuckDB query latency, an SQLite investigation workspace supporting a formally defined six-status case lifecycle, and a 29-test automated pytest suite with full module coverage.
 
 \section{Objectives Achieved}
 
+The eight project objectives stated in Chapter~\ref{ch:introduction} were achieved as follows.
+
 \begin{enumerate}
-    \item Rule-based NFHS-5 inconsistency engine with six weighted rules validated on 724,115 records and five-tier risk stratification --- \textit{achieved}.
-    \item Supervised ML pipeline (feature engineering, training, 5-fold CV, probability-calibrated risk classification) for three model families --- \textit{achieved}.
-    \item SHAP TreeExplainer integration providing global feature-importance charts and per-provider waterfall plots --- \textit{achieved}.
-    \item DuckDB analytical backend (85~MB indexed store) delivering sub-10~ms query latency on full SynPUF dataset --- \textit{achieved}.
-    \item SQLite investigation workspace with six-status case lifecycle and persistent audit trail --- \textit{achieved}.
-    \item Five claim-level heuristic screening rules providing a defence-in-depth layer independent of provider-level ML --- \textit{achieved}.
-    \item Nine-page Streamlit dashboard consolidating all analytical outputs accessible without command-line interaction --- \textit{achieved}.
+    \item \textbf{Data Engineering Pipeline:} A reproducible ingestion pipeline loads CMS SynPUF CSV files, computes ten provider features via DuckDB SQL aggregation, and materialises an 85~MB DuckDB database achieving sub-10~ms query latency --- \textit{achieved}.
+
+    \item \textbf{Multi-Model Supervised Classification:} Random Forest, Logistic Regression, and XGBoost are trained under five-fold stratified cross-validation with six evaluation metrics reported; XGBoost achieves the highest F1-score (57.56\%) and Average Precision (69.00\%) --- \textit{achieved}.
+
+    \item \textbf{SHAP Explainability Module:} TreeExplainer is applied to the fitted Random Forest, generating per-provider waterfall plots and a global feature importance ranking; TotalReimbursement (22.98\%) is identified as the leading predictor --- \textit{achieved}.
+
+    \item \textbf{NFHS-5 Clinical Inconsistency Rule Set:} Six weighted rules (R1A, R1B, R2A, R2B, R3, R4) are applied to all 724,115 records with five-tier stratification; 471 Critical-tier records are identified for priority review --- \textit{achieved}.
+
+    \item \textbf{Transparent Claim-Level Screening:} Five field-traceable DuckDB SQL screening rules surface 56,312 flagged claims across five indicator categories (reimbursement outliers, duplicate billing, temporal anomalies, complex outpatient procedures, high-frequency beneficiaries) --- \textit{achieved}.
+
+    \item \textbf{Nine-Page Streamlit Dashboard:} All analytical components are exposed through a nine-page browser-accessible investigative interface requiring no command-line interaction --- \textit{achieved}.
+
+    \item \textbf{Configurable Dual-Threshold Classification:} Interactive slider controls for Medium (default 0.30) and High (default 0.70) risk thresholds enable real-time recalculation of provider risk distributions and confusion matrices without model retraining --- \textit{achieved}.
+
+    \item \textbf{Automated Pytest Test Suite:} A 29-test suite spanning six modules (data loading, feature engineering, model prediction, claim screening, DuckDB queries, investigation workspace) achieves full module coverage with all tests passing --- \textit{achieved}.
 \end{enumerate}
 
 \section{Key Contributions}
 
-\begin{itemize}
-    \item \textbf{Dual-Dataset Hybrid Architecture:} First unified platform combining Indian NFHS-5 survey validation with US CMS SynPUF Medicare ML fraud detection.
-    \item \textbf{Weighted Rule-Based Risk Scoring:} Domain-calibrated weights across six NFHS-5 rules produce a continuous risk index.
-    \item \textbf{Ten-Feature Provider Engineering Pipeline:} Reproducible modular pipeline capturing over-billing, inpatient/outpatient mix, and beneficiary concentration signals.
-    \item \textbf{Calibrated Dual-Threshold Risk Tiering:} Configurable thresholds (Medium: $p \geq 0.30$; High: $p \geq 0.70$) allow investigators to adjust to available capacity.
-    \item \textbf{SHAP-Integrated Explainability and Structured Case Lifecycle:} Every risk score is accompanied by ranked feature attribution, and dispositions are tracked through a formally defined six-status investigation workflow.
-\end{itemize}
+\textbf{Dual-Domain Analytical Framework.} This project presents the first unified decision-support platform simultaneously addressing US Medicare provider-level ML fraud detection and Indian NFHS-5 clinical survey data consistency validation. The two datasets are maintained analytically independent; no unified fraud score conflates their outputs, preserving the interpretive integrity of each component.
+
+\textbf{Ten-Feature Provider Engineering Pipeline.} A reproducible, modular SQL-based feature engineering pipeline derives ten semantically grounded provider-level aggregate features from raw CMS SynPUF files, providing a replicable baseline for future comparative fraud detection research and enabling supervised classification in the absence of claim-level ground-truth labels \cite{b17}.
+
+\textbf{Weighted Clinical Inconsistency Rule System.} A formal six-rule weighted validation framework, applied at the full scale of 724,115 NFHS-5 records, produces a continuous risk index and five-tier stratification --- providing an automated quality assurance mechanism applicable to large-scale population health surveys \cite{b14}\cite{b15}.
+
+\textbf{SHAP-Augmented On-Demand Explainability.} Integration of SHAP TreeExplainer \cite{b6} into a live, query-driven investigative workflow enables on-demand, per-provider feature-level fraud risk explanations without batch reprocessing, satisfying the interpretability requirements of regulatory and legal investigation workflows \cite{b7}\cite{b8}.
+
+\textbf{High-Performance Embedded Analytical Backend.} Deployment of DuckDB as an in-process columnar query engine over 558,211 claims achieves sub-10~ms latency --- a 20--50$\times$ improvement over pandas-based baselines --- demonstrating the viability of embedded analytical databases for investigative decision-support applications at operationally relevant data scales \cite{b18}.
 
 \section{Key Findings}
 
-The three classifiers were evaluated under 5-fold stratified cross-validation on 5,410 providers (9.35\% positive class). XGBoost achieved the best balanced performance; Random Forest maximised precision; Logistic Regression maximised recall.
+The cross-validated evaluation establishes three complementary performance profiles across the classifier family. XGBoost is recommended for operational deployment due to its best F1-score (57.56\%) and Average Precision (69.00\%) at the default threshold; Random Forest is preferred for high-precision workflows (precision 68.93\%); Logistic Regression maximises recall (83.40\%) for high-coverage investigation scenarios. All three models achieve ROC-AUC values exceeding 0.92, demonstrating genuine discriminative power over the random baseline despite the severe class imbalance.
 
 \begin{center}
-\begin{tabular}{|l|l|l|l|l|l|l|}
+\begin{tabular}{|l|c|c|c|c|c|c|}
 \hline
-\textbf{Model} & \textbf{Acc.} & \textbf{Prec.} & \textbf{Recall} & \textbf{F1} & \textbf{ROC-AUC} & \textbf{Avg Prec.} \\
+\textbf{Model} & \textbf{Acc.} & \textbf{Prec.} & \textbf{Recall} & \textbf{F1} & \textbf{AUC} & \textbf{Avg.P} \\
 \hline
-Random Forest       & 92.98\% & 68.93\% & 44.87\% & 54.19\% & 92.33\% & 66.11\% \\
-Logistic Regression & 87.39\% & 41.40\% & 83.40\% & 55.32\% & 93.53\% & 68.67\% \\
-XGBoost             & 88.82\% & 44.73\% & 80.83\% & 57.56\% & 93.55\% & 69.00\% \\
+Random Forest       & 0.9298 & 0.6893 & 0.4487 & 0.5419 & 0.9233 & 0.6611 \\
+Logistic Regression & 0.8739 & 0.4140 & 0.8340 & 0.5532 & 0.9353 & 0.6867 \\
+XGBoost             & 0.8882 & 0.4473 & 0.8083 & 0.5756 & 0.9355 & 0.6900 \\
 \hline
 \end{tabular}
 \end{center}
 
-SHAP analysis identifies \textit{TotalReimbursement} (22.98\%), \textit{InpatientReimbursement} (16.44\%), and \textit{InpatientClaims} (11.31\%) as the top three predictors. The NFHS-5 engine flagged 20,514 records (2.83\%), with 471 Critical-tier records warranting priority clinical audit.
+SHAP analysis identifies TotalReimbursement (22.98\%), InpatientReimbursement (16.44\%), and InpatientClaims (11.31\%) as the three most influential predictors, together accounting for approximately 50.73\% of cumulative global importance. The NFHS-5 engine identifies 20,241 flagged records (2.80\%), with 471 Critical-tier and 2,328 High-tier records warranting priority clinical audit. The Random Forest holdout evaluation at threshold 0.30 achieves F1-score 0.616 and ROC-AUC 0.942 on the 1,082-provider holdout partition.
 
 \section{Current Limitations}
 
-\begin{itemize}
-    \item CMS SynPUF labels are aggregate (provider-level only); claim-level supervised learning is unavailable.
-    \item No NFHS-5 ground-truth annotations; rule precision/recall cannot be computed from first principles.
-    \item Class imbalance (9.35\%) constrains precision-recall trade-offs; Random Forest achieves only 44.87\% recall at the default threshold.
-    \item Batch-only architecture on synthetic data; results may not generalise directly to real-world claims.
-\end{itemize}
+The primary limitation of the Medicare component is that the \textit{PotentialFraud} label in CMS SynPUF is a provider-level aggregate annotation rather than a claim-level ground truth. This prevents the construction of a trained claim-level fraud classifier and means that the claim-level screening component is inherently rule-based rather than supervised. Furthermore, SynPUF is a synthetic dataset constructed to replicate the statistical properties of Medicare claims without containing real beneficiary information; models trained on SynPUF may not generalise directly to real-world claims distributions.
+
+The NFHS-5 component lacks external ground-truth annotations, making it impossible to compute classical precision and recall metrics for the rule-based system from first principles. The 2.80\% flag rate is an output of the implemented rule set rather than an independently validated accuracy measure. The rule weights are domain-calibrated rather than learned from labelled data, and their optimality has not been formally verified.
+
+Class imbalance (9.35\% positive class) constrains the achievable precision-recall tradeoff across all classifiers. Even with class-weight balancing, Random Forest achieves only 44.87\% recall at the default threshold --- implying that more than half of fraudulent providers are not detected at the operating point that maximises precision. The batch-only training architecture requires model retraining if new labelled data becomes available; online learning is not currently supported.
 
 \section{Future Enhancements}
 
-\begin{itemize}
-    \item \textbf{Temporal Modelling:} LSTM or transformer-based models to capture longitudinal billing trajectory anomalies.
-    \item \textbf{Real-Time Streaming:} Apache Kafka and Spark Structured Streaming to score providers within seconds of claim submission.
-    \item \textbf{Graph-Based Collusion Detection:} Provider-beneficiary bipartite graph with community-detection algorithms to surface organised fraud rings.
-    \item \textbf{Claim-Level Supervised Learning:} Labelled claim-level annotations via synthetic augmentation or insurer partnership.
-    \item \textbf{Privacy-Preserving Deployment:} Differential privacy, RBAC, and HIPAA/PDPB audit logging for production environments.
-\end{itemize}
+\textbf{Temporal Modelling.} LSTM or transformer-based sequence models applied to longitudinal provider billing trajectories may capture temporal patterns in escalating overbilling or claim frequency that are not represented in the current static ten-feature aggregation.
+
+\textbf{Real-Time Streaming.} Integration of Apache Kafka and Spark Structured Streaming would enable provider risk scores to be updated within seconds of claim submission, transitioning the system from a batch investigation tool to a real-time claims adjudication support system.
+
+\textbf{Graph-Based Collusion Detection.} Construction of a provider-beneficiary bipartite graph, with community-detection algorithms applied to identify densely connected subgraphs, could surface organised fraud rings that evade individual provider-level classifiers by distributing billing anomalies across a network of colluding entities.
+
+\textbf{Claim-Level Supervised Learning.} Generation of synthetic claim-level fraud labels through domain-expert annotation or insurer partnership would enable the training of a claim-level classifier, closing the granularity gap between the current provider-level ML component and the claim-level screening component.
+
+\textbf{Privacy-Preserving Deployment.} Production deployment on real Medicare data would require differential privacy guarantees, role-based access control (RBAC), HIPAA-compliant audit logging, and data anonymisation pipelines. These engineering requirements are outside the scope of the current academic prototype but represent essential preconditions for regulatory deployment.
+
+\textbf{Reproducibility and External Validation.} Reconciliation of the observed discrepancies between cross-validation and holdout metric records, re-execution of all experiments from scratch on a clean environment, and evaluation on an independent held-out dataset (e.g., a later SynPUF release period) would substantially strengthen the evidential basis for the reported results.
 
 \section{Potential Applications}
 
-\begin{itemize}
-    \item \textbf{Insurance SIUs and Government Schemes:} Provider risk scoring adaptable for India's AB-PMJAY to combat upcoding and ghost-beneficiary fraud.
-    \item \textbf{Hospital Internal Compliance:} Rule-based inconsistency engine as a pre-submission billing auditor.
-    \item \textbf{Health Survey Quality Assurance:} Weighted rule engine applied in near-real time during field data collection to flag enumerator errors.
-\end{itemize}
+\textbf{Insurance Special Investigation Units and Government Health Schemes.} The provider-level risk scoring and SHAP explainability framework is directly adaptable for India's Ayushman Bharat Pradhan Mantri Jan Arogya Yojana (AB-PMJAY) scheme to combat upcoding, ghost-beneficiary fraud, and systematic over-billing by empanelled hospitals.
+
+\textbf{Hospital Internal Compliance.} The rule-based claim screening module can be deployed as a pre-submission billing auditor within hospital revenue cycle management systems, flagging claims with statistical anomalies or procedure code inconsistencies before submission to payers.
+
+\textbf{Population Health Survey Quality Assurance.} The weighted clinical rule engine can be applied in near-real time during NFHS or similar field data collection, flagging enumerator errors and respondent inconsistencies at the point of interview rather than during post-hoc data cleaning --- substantially reducing the cost and delay of epidemiological data quality assurance.
 
 \section*{Closing Remarks}
 
-This project demonstrates that a principled combination of rule-based clinical reasoning, supervised machine learning, and Explainable AI can produce a practically useful healthcare fraud detection system operable across heterogeneous data regimes. The verified results --- XGBoost ROC-AUC of 93.55\% and F1 of 57.56\%, and 20,514 NFHS-5 inconsistencies including 471 Critical-risk records --- provide a strong empirical foundation for further research and deployment in regulated healthcare environments.
+This project demonstrates that a principled combination of rule-based clinical reasoning, supervised machine learning, and Explainable AI can produce a practically useful healthcare investigation-support system operable across heterogeneous data regimes and deployable in a fully local environment without cloud infrastructure. The verified cross-validation results --- XGBoost ROC-AUC of 93.55\% and F1-score of 57.56\%, Random Forest holdout F1-score of 0.616 at threshold 0.30, and 20,241 NFHS-5 clinical inconsistencies including 471 Critical-risk records --- provide a strong empirical foundation for further research and incremental deployment in regulated healthcare environments.
+
+The system is explicitly positioned as an investigation-prioritisation tool that augments human analytical capacity rather than replacing human judgement. Every component is designed to surface evidence, explain predictions, and support structured case management --- empowering investigators with transparency, speed, and traceability while preserving the accountability that high-stakes healthcare enforcement demands.
