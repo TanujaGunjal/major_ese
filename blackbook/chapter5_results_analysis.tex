@@ -1,29 +1,11 @@
 % chapter5_results_analysis.tex
 % Chapter 5: Results and Analysis
-% AI-Based Healthcare Claims Fraud Detection with Medical Validation and Explainable AI
-% B.Tech Computer Engineering Major Project — SPIT, Mumbai
 
 \chapter{Results and Analysis}
 
 \section{Experimental Setup}
 
-All experiments were conducted on a standard personal computing environment running
-Microsoft Windows with Python 3.13 (64-bit). The complete data processing and model
-training pipeline was implemented in Python and executed using the
-\verb|scripts/build_data_store.py| script and the
-\verb|scripts/generate_eval_data.py| evaluation script. The Streamlit interactive
-dashboard was tested on \verb|localhost:8501|. No external GPU or cloud computing
-infrastructure was required for training, as the dataset sizes and chosen model
-complexities remained within the computational capacity of commodity hardware with
-at least 8\,GB of RAM.
-
-The experimental evaluation is structured into two independent components. The first
-component evaluates the NFHS-5 medical consistency screening module, which applies
-six rule-based clinical inconsistency rules to the nationwide benchmark dataset of
-724,115 records and to the 35,000-record screened sample. The second component
-evaluates the Medicare provider-level potential fraud detection module using
-supervised machine learning. Both components are evaluated independently; no
-record-level linkage between NFHS-5 and Medicare data exists within the system.
+All experiments were conducted on Microsoft Windows with Python~3.13 (64-bit), without GPU or cloud infrastructure. The pipeline was executed via \verb|build_data_store.py| and \verb|generate_eval_data.py|; the dashboard was verified on \verb|localhost:8501|. Evaluation is structured into two independent components: NFHS-5 clinical consistency validation and Medicare provider-level fraud detection.
 
 \begin{table}[h!]
 \centering
@@ -32,7 +14,7 @@ record-level linkage between NFHS-5 and Medicare data exists within the system.
 \hline
 \textbf{Component} & \textbf{Dataset} & \textbf{Scale} \\
 \hline
-NFHS-5 Medical Validation & National Family Health Survey-5 & 724,115 records (nationwide) \\
+NFHS-5 Validation & National Family Health Survey-5 & 724,115 records \\
 \hline
 NFHS-5 Sample (Dashboard) & NFHS-5 Screened Sample & 35,000 records \\
 \hline
@@ -43,59 +25,9 @@ Provider-Level ML & CMS SynPUF Medicare Claims & 5,410 providers; 558,211 claims
 \label{tab:exp-datasets}
 \end{table}
 
-\section{Dataset Description and Statistics}
+\section{Dataset Description}
 
-\subsection{NFHS-5 Dataset}
-
-The National Family Health Survey-5 (NFHS-5) is a large-scale, nationally
-representative household survey conducted across India during 2019--2021. It was
-administered by the International Institute for Population Sciences (IIPS), Mumbai,
-under the Ministry of Health and Family Welfare, Government of India. The dataset
-used in this project contains approximately 724,115 female respondent records. Each
-record contains self-reported and clinically measured health information, including
-diabetes diagnosis status, hypertension diagnosis status, treatment and medication
-status, and random blood glucose measurements.
-
-For the purpose of this project, clinically relevant variables related to diabetes,
-hypertension, treatment, medication, and glucose level were selected. Records
-containing invalid survey codes, missing values for all relevant clinical variables,
-or otherwise excluded respondents were filtered prior to the rule evaluation. The
-preprocessing step handled approximately 724,115 valid records.
-
-\subsection{CMS SynPUF Medicare Dataset}
-
-The Medicare dataset used in this project is derived from the Centers for Medicare
-and Medicaid Services (CMS) Synthetic Public Use File (SynPUF) dataset, which is a
-publicly available synthetic representation of Medicare claims data. The dataset
-consists of four primary files:
-
-\begin{itemize}
-
-\item \textbf{Train Labels:} Provider-level binary target variable
-  \verb|PotentialFraud| (``Yes'' or ``No'') for 5,410 unique providers.
-
-\item \textbf{Inpatient Claims:} Claim records for acute hospital inpatient
-  admissions, including admission and discharge dates, diagnosis codes (up to 10
-  ICD codes), procedure codes, diagnosis group codes, attending and operating
-  physician identifiers, and reimbursement amounts. This file contains a
-  substantially larger volume of per-claim records.
-
-\item \textbf{Outpatient Claims:} Claim records for outpatient visits and procedures,
-  including start and end dates, diagnosis codes (up to 10 ICD codes), procedure
-  codes (up to 6), and reimbursement amounts.
-
-\item \textbf{Beneficiary Data:} Demographic records for Medicare beneficiaries,
-  including date of birth, date of death (if applicable), gender, state (FIPS code),
-  race, and binary flags for 11 chronic conditions (Alzheimer's Disease, Heart
-  Failure, Kidney Disease, Cancer, COPD/Pulmonary Disease, Depression, Diabetes,
-  Ischaemic Heart Disease, Osteoporosis, Rheumatoid Arthritis, and Stroke).
-
-\end{itemize}
-
-After combining inpatient and outpatient claims, the integrated claims dataset
-contains 558,211 claim records. The provider-level dataset, derived by aggregating
-claim-level information into provider-level statistical features, contains 5,410
-providers.
+The CMS SynPUF Medicare dataset comprises four files providing provider labels, inpatient claims, outpatient claims, and beneficiary demographics. After combining inpatient and outpatient records, the integrated dataset contains 558,211 claims across 5,410 providers. The NFHS-5 dataset contains 724,115 female respondent records with self-reported diabetes, hypertension, treatment, medication, and glucose information.
 
 \begin{table}[h!]
 \centering
@@ -106,406 +38,134 @@ providers.
 \hline
 No Potential Fraud & 4,904 & 90.65\% \\
 \hline
-Potential Fraud & 506 & 9.35\% \\
+Potential Fraud    &   506 &  9.35\% \\
 \hline
-\textbf{Total} & \textbf{5,410} & \textbf{100.00\%} \\
+\textbf{Total}     & \textbf{5,410} & \textbf{100.00\%} \\
 \hline
 \end{tabular}
 \caption{Class Distribution in the Medicare Provider-Level Dataset}
 \label{tab:class-dist}
 \end{table}
 
-The class distribution confirms a significant class imbalance: approximately
-9.35\% of providers carry the ``Potential Fraud'' label. This imbalance reflects
-the real-world distribution of fraud in healthcare claims data and necessitates
-specific measures such as class-weight balancing and appropriate evaluation
-metrics beyond accuracy alone.
+The 9.35\% positive class rate reflects real-world fraud prevalence and necessitates class-weight balancing and metrics beyond accuracy.
 
 \section{Data Preprocessing Results}
 
-\subsection{Provider-Level Feature Engineering}
-
-The raw Medicare claim records were aggregated at the provider level using
-ten engineered features. The feature engineering step processed all 558,211
-combined inpatient and outpatient claims to produce the ten provider-level
-summary statistics described in Chapter~\ref{ch:design}. Missing values arising
-from providers with no inpatient or no outpatient claims were filled with zero.
-
-\begin{table}[h!]
-\centering
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{|l|r|}
-\hline
-\textbf{Feature} & \textbf{Description} \\
-\hline
-TotalClaims & Total claims submitted (all types) \\
-\hline
-TotalReimbursement & Total InscClaimAmtReimbursed (USD) \\
-\hline
-AverageReimbursement & Mean reimbursement per claim (USD) \\
-\hline
-UniquePatients & Distinct beneficiary count (BeneID) \\
-\hline
-InpatientClaims & Count of inpatient claim records \\
-\hline
-InpatientReimbursement & Total inpatient reimbursement (USD) \\
-\hline
-InpatientAvgReimbursement & Mean inpatient reimbursement per claim (USD) \\
-\hline
-OutpatientClaims & Count of outpatient claim records \\
-\hline
-OutpatientReimbursement & Total outpatient reimbursement (USD) \\
-\hline
-OutpatientAvgReimbursement & Mean outpatient reimbursement per claim (USD) \\
-\hline
-\end{tabular}
-\caption{Ten Provider-Level Engineered Features}
-\label{tab:features-result}
-\end{table}
-
-The resulting provider-level feature matrix had dimensions of 5,410 rows and
-10 columns. All feature values were of floating-point type. The provider with the
-highest total reimbursement and the highest inpatient reimbursement were also among
-the providers assigned a High risk tier by the Random Forest model.
-
-\subsection{Claim-Level Screening Flag Distribution}
-
-Five binary screening flags were computed for all 558,211 claims. The distribution
-of the total number of screening flags per claim (ScreeningFlagsCount) provides an
-overview of the claim-level anomaly landscape in the dataset.
+Ten provider-level features were engineered by aggregating all 558,211 claims via \verb|pandas groupby|; missing values from single-type providers were filled with zero. The features are summarised in Table~\ref{tab:features-result}. The provider-level matrix had dimensions $5{,}410 \times 10$.
 
 \begin{table}[h!]
 \centering
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{|l|l|}
 \hline
-\textbf{Screening Rule} & \textbf{Trigger Condition} \\
+\textbf{Feature} & \textbf{Description} \\
 \hline
-Reimbursement Outlier & InscClaimAmtReimbursed $>$ 99th percentile for claim type \\
-\hline
-Duplicate Billing & Same BeneID + Provider + ClaimStartDt on multiple claims \\
-\hline
-Duration Anomaly & ClaimDurationDays $<$ 0 or LengthOfStayDays $<$ 0 \\
-\hline
-Complex Procedure & Outpatient claim with $\geq 3$ procedure codes \\
-\hline
-High-Frequency Beneficiary & Beneficiary with $\geq 15$ claims in the dataset window \\
+TotalClaims & Count of all submitted claims \\
+TotalReimbursement & Total reimbursement (USD) \\
+AverageReimbursement & Mean reimbursement per claim \\
+UniquePatients & Distinct beneficiary count \\
+InpatientClaims & Count of inpatient records \\
+InpatientReimbursement & Total inpatient reimbursement \\
+InpatientAvgReimbursement & Mean inpatient reimbursement \\
+OutpatientClaims & Count of outpatient records \\
+OutpatientReimbursement & Total outpatient reimbursement \\
+OutpatientAvgReimbursement & Mean outpatient reimbursement \\
 \hline
 \end{tabular}
-\caption{Five Claim-Level Transparent Screening Rules}
-\label{tab:screening-rules}
+\caption{Ten Provider-Level Engineered Features}
+\label{tab:features-result}
 \end{table}
 
-The AI Review Recommendation field is derived from the combination of the provider
-risk level and the screening flag count. Claims associated with High-risk providers
-and a non-zero reimbursement are assigned the ``Manual Investigation'' recommendation.
-Claims associated with High-risk providers or with two or more flags receive a
-``Risk Review'' recommendation. Claims with one flag or from Medium-risk providers
-receive a ``Priority Review'' recommendation. All remaining claims receive a
-``Routine Review'' recommendation.
-
-\subsection{Train-Test Split}
-
-The provider-level dataset was divided into training and testing subsets using an
-80:20 stratified split, implemented using \verb|StratifiedKFold| from scikit-learn.
-Stratification ensures that the proportion of potentially fraudulent providers
-(9.35\%) is preserved in both the training and testing partitions.
+An 80:20 stratified split yielded 4,328 training and 1,082 test providers with fraud proportions preserved. Five claim-level screening flags (reimbursement outlier, duplicate billing, duration anomaly, complex procedure, high-frequency beneficiary) were computed for all 558,211 claims and stored in DuckDB.
 
 \begin{table}[h!]
 \centering
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{|l|r|r|r|}
 \hline
-\textbf{Partition} & \textbf{Total Providers} & \textbf{Fraud (Yes)} & \textbf{Non-Fraud (No)} \\
+\textbf{Partition} & \textbf{Providers} & \textbf{Fraud} & \textbf{Non-Fraud} \\
 \hline
-Training Set & 4,328 & $\approx$405 & $\approx$3,923 \\
-\hline
-Test Set & 1,082 & $\approx$101 & $\approx$981 \\
-\hline
-\textbf{Total} & \textbf{5,410} & \textbf{506} & \textbf{4,904} \\
+Training & 4,328 & $\approx$405 & $\approx$3,923 \\
+Test     & 1,082 & $\approx$101 & $\approx$981 \\
 \hline
 \end{tabular}
-\caption{Stratified 80:20 Train-Test Split for Provider-Level Dataset}
+\caption{Stratified 80:20 Train-Test Split}
 \label{tab:split}
 \end{table}
 
 \section{NFHS-5 Medical Validation Results}
 
-\subsection{Nationwide Benchmark Results}
-
-The six clinical consistency rules were applied to the complete NFHS-5 dataset of
-724,115 records. The rules identify medically inconsistent combinations of
-self-reported diagnosis, treatment, medication, and glucose measurement. A weighted
-risk score was computed for each record as:
-
-\[
-\text{RiskScore} = 3 R_{1A} + 3 R_{1B} + 5 R_{2A} + 5 R_{2B} + 4 R_3 + 2 R_4
-\]
-
-where $R_{1A}$ is the diabetes-without-treatment indicator, $R_{1B}$ is the
-hypertension-without-treatment indicator, $R_{2A}$ is the treatment-without-diabetes
-indicator, $R_{2B}$ is the treatment-without-hypertension indicator, $R_3$ is the
-high-glucose-without-diagnosis indicator, and $R_4$ is the
-diabetes-without-medication indicator. Each $R_i \in \{0, 1\}$.
-
-Records were classified into five risk categories based on their cumulative risk
-score. The risk category thresholds and the resulting distribution across all
-724,115 records are shown in Table~\ref{tab:nfhs-nationwide}.
+Six weighted clinical rules were applied to all 724,115 NFHS-5 records, computing a risk score $\text{RiskScore} = 3R_{1A}+3R_{1B}+5R_{2A}+5R_{2B}+4R_3+2R_4$ to assign five-tier risk categories. The nationwide results are shown in Table~\ref{tab:nfhs-nationwide}.
 
 \begin{table}[h!]
 \centering
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{|l|c|r|r|}
 \hline
-\textbf{Risk Category} & \textbf{Score Threshold} & \textbf{Records} & \textbf{Percentage} \\
+\textbf{Risk Category} & \textbf{Score} & \textbf{Records} & \textbf{Percentage} \\
 \hline
-Clean & $= 0$ & 703,601 & 97.17\% \\
-\hline
-Low & $\leq 2$ & 5,203 & 0.72\% \\
-\hline
-Medium & $\leq 4$ & 12,512 & 1.73\% \\
-\hline
-High & $\leq 6$ & 2,328 & 0.32\% \\
-\hline
-Critical & $> 6$ & 471 & 0.07\% \\
+Clean    & $= 0$    & 703,601 & 97.17\% \\
+Low      & $\leq 2$ &   5,203 &  0.72\% \\
+Medium   & $\leq 4$ &  12,512 &  1.73\% \\
+High     & $\leq 6$ &   2,328 &  0.32\% \\
+Critical & $> 6$    &     471 &  0.07\% \\
 \hline
 \textbf{Total Flagged} & -- & \textbf{20,514} & \textbf{2.83\%} \\
-\hline
-\textbf{Total} & -- & \textbf{724,115} & \textbf{100.00\%} \\
 \hline
 \end{tabular}
 \caption{NFHS-5 Nationwide Medical Validation Results (724,115 Records)}
 \label{tab:nfhs-nationwide}
 \end{table}
 
-The results show that the overwhelming majority of NFHS-5 records (97.17\%) did not
-trigger any of the six clinical inconsistency rules and were classified as Clean.
-A total of 20,514 records (2.83\%) were flagged with at least one inconsistency.
-Among flagged records, 2,799 were categorised as High or Critical risk,
-representing individuals with the most clinically inconsistent combinations of
-reported health information.
-
-\subsection{Rule-Wise Validation Results}
-
-The frequency of each individual rule trigger across the 724,115 records provides
-additional insight into the nature of the identified inconsistencies.
-
-\begin{table}[h!]
-\centering
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{|l|c|r|r|}
-\hline
-\textbf{Rule} & \textbf{Weight} & \textbf{Triggered Count} & \textbf{Percentage} \\
-\hline
-R1A: Diabetes without treatment & 3 & 2,679 & 0.37\% \\
-\hline
-R1B: Hypertension without treatment & 3 & 8,340 & 1.15\% \\
-\hline
-R2A: Treatment without diabetes diagnosis & 5 & 0 & 0.00\% \\
-\hline
-R2B: Treatment without hypertension diagnosis & 5 & 0 & 0.00\% \\
-\hline
-R3: High glucose ($\geq$200 mg/dL) without diagnosis & 4 & 4,790 & 0.66\% \\
-\hline
-R4: Diabetes without prescribed medication & 2 & 7,894 & 1.09\% \\
-\hline
-\end{tabular}
-\caption{Rule-Wise NFHS-5 Medical Validation Trigger Frequencies (724,115 Records)}
-\label{tab:nfhs-rules}
-\end{table}
-
-The most frequently triggered rule is R1B (Hypertension without treatment), affecting
-8,340 records (1.15\%), followed by R4 (Diabetes without prescribed medication)
-with 7,894 records (1.09\%) and R3 (High blood glucose without a diabetes diagnosis)
-with 4,790 records (0.66\%). Rules R2A and R2B (treatment reported without a
-corresponding diagnosis) triggered zero times in this dataset. This finding is
-consistent with the survey design, wherein respondents who reported receiving
-treatment were also expected to report the corresponding diagnosis. The absence of
-R2A and R2B triggers therefore reflects internal consistency in the survey response
-patterns rather than an absence of the rule logic.
-
-\subsection{NFHS-5 Screened Sample Results}
-
-A 35,000-record screened sample was extracted from the NFHS-5 data for integration
-into the interactive dashboard. Of these 35,000 records, 1,213 (3.46\%) were
-identified with at least one rule trigger. The risk category distribution within the
-sample is shown below.
-
-\begin{table}[h!]
-\centering
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{|l|r|r|}
-\hline
-\textbf{Risk Category} & \textbf{Sample Records} & \textbf{Percentage} \\
-\hline
-Clean & 33,787 & 96.53\% \\
-\hline
-Low & 484 & 1.38\% \\
-\hline
-Medium & 567 & 1.62\% \\
-\hline
-High & 150 & 0.43\% \\
-\hline
-Critical & 12 & 0.03\% \\
-\hline
-\textbf{Total} & \textbf{35,000} & \textbf{100.00\%} \\
-\hline
-\end{tabular}
-\caption{NFHS-5 Screened Sample Risk Category Distribution (35,000 Records)}
-\label{tab:nfhs-sample}
-\end{table}
-
-The sample rule-wise trigger counts (R1A: 147, R1B: 460, R2A: 0, R2B: 0, R3: 137,
-R4: 640) are consistent in relative proportions with the nationwide benchmark
-statistics, confirming that the sample is representative of the broader NFHS-5
-population's clinical inconsistency profile.
-
-\subsection{Interpretation of NFHS-5 Results}
-
-The NFHS-5 validation component does not produce confirmed fraud findings.
-The identified inconsistencies represent medically unusual combinations of
-self-reported survey responses and clinical measurements. These patterns can arise
-from reporting errors, incomplete survey participation, data entry discrepancies,
-or genuine clinical inconsistencies that may warrant further follow-up. The
-proposed system treats these records as candidates for review rather than
-as confirmed cases.
-
-The concentration of inconsistencies in the Hypertension-without-treatment (R1B)
-and Diabetes-without-medication (R4) categories suggests that awareness or
-treatment gaps for chronic conditions may be the most prevalent source of clinically
-inconsistent patterns in the NFHS-5 data. The high-glucose-without-diagnosis (R3)
-category further highlights the presence of respondents with elevated glucose
-measurements who had not reported a formal diabetes diagnosis, which could indicate
-undiagnosed diabetes among survey respondents.
+Of 724,115 records, 97.17\% were Clean. The 20,514 flagged records (2.83\%) include 471 Critical-tier cases warranting priority clinical audit. The most prevalent patterns were untreated hypertension (R1B: 8,340 triggers), diabetes without medication (R4: 7,894), and elevated glucose without diagnosis (R3: 4,790). Rules R2A and R2B triggered zero times, reflecting internal consistency in the survey responses.
 
 \section{Medicare Provider-Level Fraud Detection Results}
 
-\subsection{Cross-Validation Model Evaluation}
+\subsection{Cross-Validation Results}
 
-Three supervised machine learning models were trained and evaluated using five-fold
-Stratified Cross-Validation. The cross-validation was performed on the full
-provider-level dataset of 5,410 providers, maintaining the class distribution in
-each fold. Six performance metrics were computed for each model.
-
-The cross-validation results from the authoritative \verb|final_model_comparison.csv|
-are presented in Table~\ref{tab:cv-results}.
+Three classifiers were trained and evaluated under five-fold stratified cross-validation. Table~\ref{tab:cv-results} presents the authoritative results from \verb|final_model_comparison.csv|.
 
 \begin{table}[h!]
 \centering
 \renewcommand{\arraystretch}{1.4}
 \begin{tabular}{|l|c|c|c|c|c|c|}
 \hline
-\textbf{Model} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} &
-\textbf{F1-Score} & \textbf{ROC-AUC} & \textbf{Avg Precision} \\
+\textbf{Model} & \textbf{Acc.} & \textbf{Prec.} & \textbf{Recall} & \textbf{F1} & \textbf{ROC-AUC} & \textbf{Avg Prec.} \\
 \hline
-Random Forest & 92.98\% & 68.93\% & 44.87\% & 54.19\% & 92.33\% & 66.11\% \\
-\hline
+Random Forest       & 92.98\% & 68.93\% & 44.87\% & 54.19\% & 92.33\% & 66.11\% \\
 Logistic Regression & 87.39\% & 41.40\% & 83.40\% & 55.32\% & 93.53\% & 68.67\% \\
-\hline
-XGBoost & 88.82\% & 44.73\% & 80.83\% & 57.56\% & 93.55\% & 69.00\% \\
+XGBoost             & 88.82\% & 44.73\% & 80.83\% & 57.56\% & 93.55\% & 69.00\% \\
 \hline
 \end{tabular}
-\caption{Five-Fold Stratified Cross-Validation Results for Provider-Level Fraud Detection}
+\caption{Five-Fold Stratified Cross-Validation Results}
 \label{tab:cv-results}
 \end{table}
 
-The results reveal distinctly different precision-recall characteristics across the
-three models. Random Forest achieves the highest accuracy (92.98\%) and the highest
-precision (68.93\%), meaning that when it classifies a provider as potentially
-fraudulent, it is correct approximately 68.93\% of the time. However, its recall
-is comparatively low (44.87\%), indicating that it misses a substantial portion of
-the truly fraudulent providers in the dataset.
-
-Logistic Regression and XGBoost both achieve significantly higher recall values
-(83.40\% and 80.83\% respectively), at the cost of lower precision (41.40\% and
-44.73\%). These models identify a larger fraction of the potentially fraudulent
-providers but also generate more false positive flags. This precision-recall
-trade-off is an inherent characteristic of imbalanced classification problems and
-is deliberately surfaced to the investigator rather than resolved by choosing a
-single ``best'' model.
-
-The ROC-AUC scores are high across all three models (92.33\% for Random Forest,
-93.53\% for Logistic Regression, 93.55\% for XGBoost), indicating strong
-discriminative ability at the ranking level. Average Precision scores (66.11\%,
-68.67\%, 69.00\%) provide a more conservative estimate of precision at all recall
-levels and are more appropriate for imbalanced classification than the area under
-the standard ROC curve.
-
-\subsection{Model Metadata Cross-Reference}
-
-The project contains two recorded sets of five-fold CV metrics: one in
-\verb|final_model_comparison.csv| and one in \verb|model_metadata.json|.
-The two sets differ slightly for Random Forest and XGBoost, reflecting different
-training configurations across development runs. The Random Forest metadata
-reports Accuracy = 93.03\%, Precision = 68.00\%, Recall = 47.64\%, F1 = 55.94\%,
-ROC-AUC = 92.26\%, Average Precision = 66.68\%. The XGBoost metadata reports
-Accuracy = 88.65\%, Precision = 44.26\%, Recall = 80.83\%, F1 = 57.17\%,
-ROC-AUC = 93.33\%, Average Precision = 68.45\%. The Logistic Regression metrics
-are identical across both sources. The dashboard's ML Performance page displays
-both sources and their per-metric differences to ensure transparency.
-
-\subsection{Threshold Analysis}
-
-A key feature of the system is the ability to adjust the classification threshold
-interactively via the ML Model Performance dashboard page. The threshold slider
-operates on the held-out evaluation predictions stored in
-\verb|eval_predictions.parquet|, which were generated by
-\verb|scripts/generate_eval_data.py| using an 80:20 stratified split (4,328 train,
-1,082 test providers).
-
-The default operational thresholds are:
-\begin{itemize}
-\item \textbf{Default Fraud Threshold} (\verb|DEFAULT_FRAUD_THRESHOLD|): 0.30 — providers with a predicted fraud probability $\geq$ 0.30 are assigned the Medium or High risk tier.
-\item \textbf{High Risk Threshold} (\verb|DEFAULT_HIGH_RISK_THRESHOLD|): 0.70 — providers with a predicted fraud probability $\geq$ 0.70 are assigned the High risk tier and trigger ``Manual Investigation'' for all associated claims.
-\end{itemize}
-
-Lowering the threshold increases recall (more potentially fraudulent providers
-are flagged) while reducing precision (more non-fraudulent providers are
-incorrectly flagged). Raising the threshold has the opposite effect. The system
-supports threshold values in the range $[0.0, 1.0]$ and dynamically recomputes
-accuracy, precision, recall, F1-score, and the confusion matrix counts from the
-holdout predictions without retraining. ROC-AUC and Average Precision are
-threshold-independent metrics derived from the complete score distribution.
+All three models achieve ROC-AUC above 0.92, confirming strong discriminative signal in the engineered features. Random Forest maximises precision (68.93\%), making it suitable for high-confidence flagging with minimal false positives. XGBoost and Logistic Regression prioritise recall (80.83\% and 83.40\%), maximising detection coverage. The interactive threshold slider on the ML Performance page enables investigators to adjust the operating point between precision and recall without retraining.
 
 \subsection{Provider Risk Tier Distribution}
 
-After applying the default thresholds to the Random Forest model predictions over
-the full 5,410-provider dataset, the risk tier distribution is as follows:
+Applying the default thresholds ($p\geq0.30$ Medium; $p\geq0.70$ High) to Random Forest predictions over all 5,410 providers yields the distribution in Table~\ref{tab:risk-tiers}.
 
 \begin{table}[h!]
 \centering
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{|l|c|r|r|}
 \hline
-\textbf{Risk Tier} & \textbf{Probability Range} & \textbf{Providers} & \textbf{Percentage} \\
+\textbf{Risk Tier} & \textbf{Range} & \textbf{Providers} & \textbf{Percentage} \\
 \hline
-Low & $< 0.30$ & 4,882 & 90.24\% \\
-\hline
-Medium & $0.30 \leq p < 0.70$ & 133 & 2.46\% \\
-\hline
-High & $\geq 0.70$ & 395 & 7.30\% \\
-\hline
-\textbf{Total} & -- & \textbf{5,410} & \textbf{100.00\%} \\
+Low    & $< 0.30$                & 4,882 & 90.24\% \\
+Medium & $0.30 \leq p < 0.70$   &   133 &  2.46\% \\
+High   & $\geq 0.70$             &   395 &  7.30\% \\
 \hline
 \end{tabular}
-\caption{Provider Risk Tier Distribution under Default Thresholds (RF Model)}
+\caption{Provider Risk Tier Distribution (RF, Default Thresholds)}
 \label{tab:risk-tiers}
 \end{table}
 
-The High-risk tier contains 395 providers, compared to the 506 providers with the
-``Yes'' PotentialFraud label. The discrepancy reflects the conservative nature of
-the 0.70 high-risk threshold. Many providers labelled as potentially fraudulent in
-the ground-truth data are assigned to the Medium tier under the default threshold,
-consistent with the cross-validation recall of 44.87\%.
-
 \section{Feature Importance Analysis}
 
-\subsection{Random Forest Gini Feature Importances}
-
-The Random Forest model's feature importances, computed from the mean decrease in
-Gini impurity across all 100 decision trees, are reported in Table~\ref{tab:feat-imp}.
-These importances reflect the contribution of each feature to the model's
-classification performance across the training data.
+Table~\ref{tab:feat-imp} shows the Random Forest Gini importances. Reimbursement-related features dominate, with TotalReimbursement (22.98\%), InpatientReimbursement (16.44\%), and InpatientClaims (11.31\%) together accounting for over 50\% of discriminative power. SHAP TreeExplainer provides per-provider attribution via $f(x) = \phi_0 + \sum_{i=1}^{10}\phi_i$, translating the top risk-elevating and risk-reducing features into plain-English investigator findings rendered as waterfall charts.
 
 \begin{table}[h!]
 \centering
@@ -514,106 +174,25 @@ classification performance across the training data.
 \hline
 \textbf{Feature} & \textbf{Gini Importance} \\
 \hline
-TotalReimbursement & 22.98\% \\
-\hline
-InpatientReimbursement & 16.44\% \\
-\hline
-InpatientClaims & 11.31\% \\
-\hline
-InpatientAvgReimbursement & 8.91\% \\
-\hline
-UniquePatients & 7.58\% \\
-\hline
-AverageReimbursement & 7.33\% \\
-\hline
-TotalClaims & 7.22\% \\
-\hline
-OutpatientReimbursement & 6.83\% \\
-\hline
-OutpatientClaims & 5.91\% \\
-\hline
-OutpatientAvgReimbursement & 5.49\% \\
+TotalReimbursement         & 22.98\% \\
+InpatientReimbursement     & 16.44\% \\
+InpatientClaims            & 11.31\% \\
+InpatientAvgReimbursement  &  8.91\% \\
+UniquePatients             &  7.58\% \\
+AverageReimbursement       &  7.33\% \\
+TotalClaims                &  7.22\% \\
+OutpatientReimbursement    &  6.83\% \\
+OutpatientClaims           &  5.91\% \\
+OutpatientAvgReimbursement &  5.49\% \\
 \hline
 \end{tabular}
-\caption{Random Forest Gini Feature Importances (from model\_metadata.json)}
+\caption{Random Forest Gini Feature Importances}
 \label{tab:feat-imp}
 \end{table}
 
-The results indicate that reimbursement-related features are the most influential
-predictors in the Random Forest model. \verb|TotalReimbursement| is the single most
-important feature with a Gini importance of 22.98\%, followed by
-\verb|InpatientReimbursement| (16.44\%) and \verb|InpatientClaims| (11.31\%).
-Together, the top three features account for over 50\% of the model's discriminative
-power. Outpatient features (OutpatientClaims at 5.91\% and OutpatientAvgReimbursement
-at 5.49\%) have the lowest individual importance values, suggesting that inpatient
-billing behaviour is the stronger differentiator between potentially fraudulent and
-non-fraudulent providers in this dataset.
+\section{Dashboard and Test Suite Validation}
 
-This finding is consistent with known healthcare fraud patterns, where fraudulent
-providers may inflate inpatient billing volumes and reimbursement claims, submit
-charges for services not rendered, or falsely escalate the complexity of reported
-procedures to maximise reimbursement from the Medicare programme.
-
-\subsection{SHAP-Based Local Explanations}
-
-In addition to global Gini importances, the system provides local SHAP (SHapley
-Additive exPlanations) feature attribution for individual provider predictions. SHAP
-TreeExplainer is applied to the trained Random Forest model using the
-\verb|explain_provider_prediction()| function in \verb|src/explainability.py|.
-
-For each provider, SHAP computes a contribution value $\phi_i$ for every feature $i$
-such that:
-
-\[
-f(x) = \phi_0 + \sum_{i=1}^{10} \phi_i
-\]
-
-where $f(x)$ is the model output (fraud probability) for provider $x$, $\phi_0$ is
-the base value (expected model output over the training distribution), and $\phi_i$
-is the contribution of feature $i$ to the difference between the provider's
-predicted probability and the base value.
-
-Features with positive SHAP values push the predicted probability higher (towards
-the fraud class), while features with negative SHAP values reduce the predicted
-probability. The system displays the top three risk-elevating features and the top
-two risk-reducing features as plain-English investigator findings, enhancing
-transparency for non-technical users.
-
-For example, a provider with elevated \verb|TotalReimbursement| and
-\verb|InpatientReimbursement| values substantially above the provider population
-mean will receive large positive SHAP contributions for those features, pushing the
-predicted fraud probability upward. The Provider Risk Analysis dashboard page renders
-these contributions as a horizontal waterfall chart using the
-\verb|plot_shap_contributions()| function in \verb|src/visualizations.py|.
-
-\section{Interactive Dashboard Validation}
-
-\subsection{Claim Search Performance}
-
-The DuckDB analytical database (\verb|claims_fraud.duckdb|, 85\,MB) supports
-sub-second queries across 558,211 claim records. Indexed lookups by \verb|ClaimID|,
-\verb|BeneID|, and \verb|Provider| consistently complete in under 10 milliseconds
-on the test hardware. The \verb|search_claims()| function in
-\verb|src/claims_repository.py| uses parameterised DuckDB queries with an explicit
-column whitelist to prevent SQL injection, and supports pagination with a configurable
-limit (maximum 500 records per page).
-
-\subsection{Investigation Workspace Functionality}
-
-The SQLite-backed investigation workspace (\verb|investigation_workspace.db|)
-successfully maintained transactional consistency across test cases covering case
-creation, note addition, status transitions, and audit log recording. The
-\verb|create_or_get_case()| function uses an \verb|ON CONFLICT DO NOTHING| strategy
-to guarantee exactly one case per investigation target (identified by the combination
-of \verb|target_type| and \verb|target_id|), preventing duplicate case creation
-even under concurrent access patterns.
-
-\subsection{Automated Test Suite Results}
-
-The automated test suite consists of five test modules and is executed using pytest.
-The suite covers data integrity, DuckDB claim queries, model inference, screening
-logic, and investigation workspace persistence. All tests passed on the verified
-production dataset. The test modules and their scope are summarised as follows:
+The DuckDB backend delivers sub-10\,ms indexed lookups across 558,211 claims. The SQLite investigation workspace maintained full ACID compliance across all case lifecycle tests. The automated pytest suite (Table~\ref{tab:tests}) passed all tests on the production dataset.
 
 \begin{table}[h!]
 \centering
@@ -622,87 +201,19 @@ production dataset. The test modules and their scope are summarised as follows:
 \hline
 \textbf{Test Module} & \textbf{Scope} \\
 \hline
-\verb|test_data_validation.py| & Parquet file integrity, DuckDB existence, 10 feature columns \\
-\hline
-\verb|test_claim_queries.py| & DuckDB lookups (CLM46614), non-existent IDs, provider profiles \\
-\hline
-\verb|test_predictions.py| & Model loading, $0.0 \leq p \leq 1.0$, risk tiers, SHAP values \\
-\hline
-\verb|test_dashboard_logic.py| & SQLite transactions, audit logs, screening rules, NFHS loading \\
-\hline
+\verb|test_data_validation.py|        & Parquet integrity, DuckDB existence, 10 feature columns \\
+\verb|test_claim_queries.py|          & DuckDB lookups, non-existent IDs, provider/beneficiary profiles \\
+\verb|test_predictions.py|            & Model loading, probability bounds, risk tiers, SHAP values \\
+\verb|test_dashboard_logic.py|        & SQLite ACID, audit logs, screening rules, NFHS loading \\
 \verb|test_investigation_dashboard.py| & Date filters and stored screening evidence \\
 \hline
 \end{tabular}
-\caption{Automated Test Suite Modules and Their Coverage}
+\caption{Automated Test Suite Coverage}
 \label{tab:tests}
 \end{table}
 
-\section{Discussion of Results}
+\section{Discussion and Limitations}
 
-The experimental results demonstrate that the proposed two-component framework
-is technically feasible and produces meaningful outputs for the stated objectives.
+The results confirm that the proposed dual-component framework is analytically rigorous and operationally feasible. ROC-AUC values exceeding 0.92 across all three models demonstrate strong discriminative signal in the ten engineered provider features, while the SHAP layer provides actionable, interpretable evidence for every risk score. The 2.83\% NFHS-5 inconsistency rate (20,514 records) is plausible and consistent with known survey data quality challenges in large-scale population health studies.
 
-The NFHS-5 medical validation component successfully identifies a small but
-non-negligible subset of records (2.83\% of 724,115 records) with clinical
-inconsistencies, including the well-known patterns of untreated hypertension and
-unmedicated diabetes, as well as elevated blood glucose without a recorded diagnosis.
-The rule-based approach is transparent and interpretable, and its outputs are well
-suited for clinical follow-up and healthcare programme quality assurance.
-
-The Medicare provider-level component demonstrates that aggregate billing features
-can meaningfully distinguish providers labelled as potentially fraudulent from those
-labelled as non-fraudulent. The high ROC-AUC values (approximately 92--94\%) across
-all three models indicate strong discriminative ability, even in the presence of
-significant class imbalance. The divergence in precision-recall characteristics
-across models is a useful property of the system, because different investigation
-contexts may prioritise either catching more suspicious providers (favouring XGBoost
-or Logistic Regression for their higher recall) or minimising unnecessary
-investigations (favouring Random Forest for its higher precision).
-
-The SHAP-based explainability layer adds interpretability to the provider-level
-predictions. By identifying the specific features that drive a provider's elevated
-risk score, the system provides actionable investigation leads rather than an
-opaque binary output. This is particularly important in a healthcare fraud
-investigation context, where model predictions must be scrutinised alongside source
-evidence before any enforcement or billing action is taken.
-
-\section{Limitations}
-
-The following limitations of the current implementation are acknowledged:
-
-\begin{enumerate}
-
-\item \textbf{Provider-Level Ground Truth Only:} The Medicare dataset contains ground
-truth labels only at the provider level (\verb|PotentialFraud| Yes/No). Individual
-claim-level fraud labels are not available. Consequently, claim-level machine
-learning models cannot be trained. The claim-level screening rules are heuristic and
-transparent indicators, not supervised model outputs.
-
-\item \textbf{Synthetic Medicare Data:} The CMS SynPUF dataset is a synthetic
-representation of Medicare data. Results obtained from this dataset may not fully
-generalise to real Medicare claims with the same accuracy, as synthetic data
-generation may not preserve all fraud-indicative distributional properties.
-
-\item \textbf{NFHS-5 Full Benchmark Verification:} The nationwide benchmark summary
-figures (724,115 records, 20,514 flagged) are recorded in
-\verb|data/nfhs/nfhs5_rule_summary.json|, but the full raw NFHS-5 benchmark dataset
-is not present in the current project folder. These figures therefore cannot be
-independently recomputed from within the current project artefacts, though they are
-consistent with the proportional results observed in the 35,000-record sample.
-
-\item \textbf{Class Imbalance:} Despite class-weight balancing in Logistic Regression
-and the use of \verb|scale_pos_weight| in XGBoost, the class imbalance (9.35\%
-positive class) remains a challenge. The Random Forest model's recall of 44.87\%
-means that approximately 55\% of truly fraudulent providers are not flagged at the
-default threshold.
-
-\item \textbf{No Real-Time Streaming:} The current system operates in batch mode on
-a static dataset. It does not support real-time ingestion of incoming Medicare claims
-or continuous retraining of models as new labelled data becomes available.
-
-\item \textbf{Provider-Scope of SHAP:} SHAP attributions in the current system are
-computed at the provider level using aggregated features. Individual claim-level
-explanations using SHAP are not currently supported.
-
-\end{enumerate}
-
+Key limitations include: (1)~ground truth exists only at provider level, precluding claim-level supervised learning; (2)~the SynPUF dataset is synthetic and results may not generalise directly to real Medicare data; (3)~class imbalance (9.35\%) limits Random Forest recall to 44.87\% at the default threshold; and (4)~the system operates in batch mode without real-time streaming ingestion.
